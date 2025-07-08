@@ -18,9 +18,9 @@ func main() {
 	if err != nil {
 		fmt.Println("Error loading .env config:", err)
 	}
-	
+
 	app := gofr.New()
-	
+
 	db := mongo.New(mongo.Config{
 		URI:               os.Getenv("MONGO_URI"),
 		Database:          os.Getenv("MONGO_DB"),
@@ -30,22 +30,16 @@ func main() {
 	app.AddMongo(db)
 
 	// Health check endpoint
-	app.GET("/health", func(ctx *gofr.Context) (interface{}, error) {
-		return map[string]interface{}{
-			"status": "healthy",
-			"services": map[string]string{
-				"mongoDB": "connected",
-			},
-		}, nil
-	})
+	app.GET("/health", handler.HealthHandler())
 
 	urlStore := store.NewURLStore()
 	urlService := service.NewURLService(urlStore)
 	urlHandler := handler.NewURLHandler(urlService)
-	
+
 	// URL endpoints
 	app.POST("/api/urls", urlHandler.Create)
 	app.GET("/api/urls/{short_code}", urlHandler.Get)
+	app.GET("/{short_code}", urlHandler.Redirect)
 
 	app.Run()
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"math/rand"
+	"os"
 	"strings"
 
 	"github.com/sksmagr23/url-shortener-gofr/internal/model"
@@ -32,10 +33,12 @@ func (s *URLService) Create(ctx *gofr.Context, original string) (*model.URL, err
 		return nil, errors.New("invalid URL")
 	}
 	code := GenerateShortCode(6)
+	host := os.Getenv("SHORT_URL_HOST")
 	url := &model.URL{
 		Original:  original,
 		ShortCode: code,
 	}
+	url.ShortURL = host + code
 	err := s.Store.Insert(ctx, url)
 	if err != nil {
 		return nil, err
@@ -44,5 +47,14 @@ func (s *URLService) Create(ctx *gofr.Context, original string) (*model.URL, err
 }
 
 func (s *URLService) GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
-	return s.Store.FindByShortCode(ctx, code)
+	url, err := s.Store.FindByShortCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	host := os.Getenv("SHORT_URL_HOST")
+	if host == "" {
+		host = "https://sksmagr23/"
+	}
+	url.ShortURL = host + url.ShortCode
+	return url, nil
 }
