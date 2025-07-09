@@ -6,6 +6,7 @@ import (
 	"gofr.dev/pkg/gofr"
 )
 
+// GET /health
 func HealthHandler() func(ctx *gofr.Context) (interface{}, error) {
 	return func(ctx *gofr.Context) (interface{}, error) {
 		mongoStatus := "connected"

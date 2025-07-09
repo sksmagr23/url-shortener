@@ -28,6 +28,11 @@ func GenerateShortCode(length int) string {
 	return string(b)
 }
 
+type URLServiceIface interface {
+	Create(ctx *gofr.Context, original string) (*model.URL, error)
+	GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error)
+}
+
 func (s *URLService) Create(ctx *gofr.Context, original string) (*model.URL, error) {
 	if !strings.HasPrefix(original, "http://") && !strings.HasPrefix(original, "https://") {
 		return nil, errors.New("invalid URL")
@@ -52,9 +57,6 @@ func (s *URLService) GetByShortCode(ctx *gofr.Context, code string) (*model.URL,
 		return nil, err
 	}
 	host := os.Getenv("SHORT_URL_HOST")
-	if host == "" {
-		host = "https://sksmagr23/"
-	}
 	url.ShortURL = host + url.ShortCode
 	return url, nil
 }

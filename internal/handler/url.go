@@ -3,14 +3,14 @@ package handler
 import (
 	"github.com/sksmagr23/url-shortener-gofr/internal/service"
 	"gofr.dev/pkg/gofr"
-    "gofr.dev/pkg/gofr/http/response"
+	"gofr.dev/pkg/gofr/http/response"
 )
 
 type URLHandler struct {
-	Service *service.URLService
+	Service service.URLServiceIface
 }
 
-func NewURLHandler(service *service.URLService) *URLHandler {
+func NewURLHandler(service service.URLServiceIface) *URLHandler {
 	return &URLHandler{Service: service}
 }
 
@@ -39,12 +39,12 @@ func (h *URLHandler) Get(ctx *gofr.Context) (interface{}, error) {
 	return url, nil
 }
 
-// GET /{short_code} (redirect)
+// GET /{short_code}
 func (h *URLHandler) Redirect(ctx *gofr.Context) (interface{}, error) {
-    code := ctx.PathParam("short_code")
-    url, err := h.Service.GetByShortCode(ctx, code)
-    if err != nil {
-        return nil, err
-    }
-    return response.Redirect{URL: url.Original}, nil
+	code := ctx.PathParam("short_code")
+	url, err := h.Service.GetByShortCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	return response.Redirect{URL: url.Original}, nil
 }
