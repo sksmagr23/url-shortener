@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sksmagr23/url-shortener-gofr/internal/model"
-	"github.com/sksmagr23/url-shortener-gofr/internal/store"
+	"github.com/sksmagr23/url-shortener-gofr/model"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 	"gofr.dev/pkg/gofr"
 )
 

@@ -1,4 +1,4 @@
-package tests
+package handler_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sksmagr23/url-shortener-gofr/internal/handler"
+	"github.com/sksmagr23/url-shortener-gofr/handler"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"

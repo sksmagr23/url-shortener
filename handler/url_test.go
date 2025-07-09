@@ -1,4 +1,4 @@
-package tests
+package handler_test
 
 import (
 	"bytes"
@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sksmagr23/url-shortener-gofr/internal/handler"
-	"github.com/sksmagr23/url-shortener-gofr/internal/model"
-	"github.com/sksmagr23/url-shortener-gofr/internal/service"
-	"github.com/sksmagr23/url-shortener-gofr/internal/store"
+	"github.com/sksmagr23/url-shortener-gofr/handler"
+	"github.com/sksmagr23/url-shortener-gofr/model"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson"

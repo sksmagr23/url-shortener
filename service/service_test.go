@@ -1,4 +1,4 @@
-package tests
+package service_test
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sksmagr23/url-shortener-gofr/internal/model"
-	"github.com/sksmagr23/url-shortener-gofr/internal/service"
-	"github.com/sksmagr23/url-shortener-gofr/internal/store"
+	"github.com/sksmagr23/url-shortener-gofr/model"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

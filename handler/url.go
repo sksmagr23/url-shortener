@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/sksmagr23/url-shortener-gofr/internal/service"
+	"github.com/sksmagr23/url-shortener-gofr/service"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/http/response"
 )

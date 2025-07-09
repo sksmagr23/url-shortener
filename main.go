@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/sksmagr23/url-shortener-gofr/internal/handler"
-	"github.com/sksmagr23/url-shortener-gofr/internal/service"
-	"github.com/sksmagr23/url-shortener-gofr/internal/store"
+	"github.com/sksmagr23/url-shortener-gofr/handler"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/datasource/mongo"
 )
@@ -37,8 +37,8 @@ func main() {
 	urlHandler := handler.NewURLHandler(urlService)
 
 	// URL endpoints
-	app.POST("/api/urls", urlHandler.Create)
-	app.GET("/api/urls/{short_code}", urlHandler.Get)
+	app.POST("/urls", urlHandler.Create)
+	app.GET("/urls/{short_code}", urlHandler.Get)
 	app.GET("/{short_code}", urlHandler.Redirect)
 
 	app.Run()

@@ -8,39 +8,38 @@
 - **Comprehensive Testing**: Unit tests for all components
 - **Code Quality**: Linting with golangci-lint
 - **Three-Layer Architecture**
+- **Swagger Docs**: Iinteractive API docs at `/.well-known/swagger`.
 
 ## Project Structure
 
 ```
 ├── main.go                 # Application entry point
 ├── go.mod
-├── internal/
-│   ├── handler/           # HTTP request handlers
-│   ├── service/           # Business logic layer
-│   ├── store/            # Data access layer
-│   ├── model/            # Data models
-│   └── tests/            # Test files
-├── configs/              # Configuration files
-├── .golangci.yml         # Linting configuration
-├── Makefile              # Development tasks
-└── README.md
+├── handler/                # HTTP request handlers
+├── service/                # Business logic layer
+├── store/                  # Data access layer
+├── model/                  # Data models
+├── configs/                # Configuration files
+├── .golangci.yaml          # Linting configuration
+├── Makefile                # Development tasks
+├── README.md
 ```
 
 ## Architecture
 
 ### Three-Layer Architecture
 
-1. **Handler Layer** (`internal/handler/`)
+1. **Handler Layer** (`handler/`)
    - HTTP request/response handling
    - Input validation
    - Error handling
 
-2. **Service Layer** (`internal/service/`)
+2. **Service Layer** (`service/`)
    - Business logic
    - URL generation and validation
    - Environment configuration
 
-3. **Store Layer** (`internal/store/`)
+3. **Store Layer** (`store/`)
    - Data persistence
    - MongoDB operations
    - Database abstraction
@@ -79,7 +78,6 @@ go run main.go
 
 #### Base URL : `http://localhost:8000`
 
-
 ### 1. Health Check
 
 **Endpoint:** `GET /health`
@@ -100,7 +98,7 @@ go run main.go
 
 ### 2. Create Short URL
 
-**Endpoint:** `POST /api/urls`
+**Endpoint:** `POST /urls`
 **Description:** Create a new short URL from a long URL.
 **Request Body:**
 ```json
@@ -133,7 +131,7 @@ go run main.go
 
 ### 3. Get URL Details
 
-**Endpoint:** `GET /api/urls/{short_code}`
+**Endpoint:** `GET /urls/{short_code}`
 **Description:** Retrieve details of a short URL by its short code.
 
 **Success Response (200):**
@@ -177,6 +175,13 @@ Location: https://example.com/very-long-url-that-needs-shortening
   }
 }
 ```
+
+## Swagger Documentation
+
+This project supports automatic Swagger (OpenAPI) documentation via GoFr.
+
+- Place your `openapi.json` file in the `static/` directory at the project root.
+- GoFr will automatically serve interactive API docs at `/.well-known/swagger`.
 
 
 ### Available make Commands
