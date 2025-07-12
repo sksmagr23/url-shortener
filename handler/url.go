@@ -1,16 +1,17 @@
 package handler
 
 import (
-	"github.com/sksmagr23/url-shortener-gofr/service"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/http/response"
+
+	"github.com/sksmagr23/url-shortener-gofr/service"
 )
 
 type URLHandler struct {
-	Service service.URLServiceIface
+	Service service.URLService
 }
 
-func NewURLHandler(service service.URLServiceIface) *URLHandler {
+func NewURLHandler(service service.URLService) *URLHandler {
 	return &URLHandler{Service: service}
 }
 

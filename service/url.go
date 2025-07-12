@@ -3,20 +3,21 @@ package service
 import (
 	"errors"
 	"math/rand"
-	"os"
 	"strings"
+
+	"gofr.dev/pkg/gofr"
 
 	"github.com/sksmagr23/url-shortener-gofr/model"
 	"github.com/sksmagr23/url-shortener-gofr/store"
-	"gofr.dev/pkg/gofr"
 )
 
-type URLService struct {
+type URLServiceImpl struct {
 	Store *store.URLStore
+	Host  string
 }
 
-func NewURLService(store *store.URLStore) *URLService {
-	return &URLService{Store: store}
+func NewURLService(store *store.URLStore, host string) URLService {
+	return &URLServiceImpl{Store: store, Host: host}
 }
 
 func GenerateShortCode(length int) string {
@@ -28,22 +29,21 @@ func GenerateShortCode(length int) string {
 	return string(b)
 }
 
-type URLServiceIface interface {
+type URLService interface {
 	Create(ctx *gofr.Context, original string) (*model.URL, error)
 	GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error)
 }
 
-func (s *URLService) Create(ctx *gofr.Context, original string) (*model.URL, error) {
+func (s *URLServiceImpl) Create(ctx *gofr.Context, original string) (*model.URL, error) {
 	if !strings.HasPrefix(original, "http://") && !strings.HasPrefix(original, "https://") {
 		return nil, errors.New("invalid URL")
 	}
 	code := GenerateShortCode(6)
-	host := os.Getenv("SHORT_URL_HOST")
 	url := &model.URL{
 		Original:  original,
 		ShortCode: code,
 	}
-	url.ShortURL = host + code
+	url.ShortURL = s.Host + code
 	err := s.Store.Insert(ctx, url)
 	if err != nil {
 		return nil, err
@@ -51,12 +51,11 @@ func (s *URLService) Create(ctx *gofr.Context, original string) (*model.URL, err
 	return url, nil
 }
 
-func (s *URLService) GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
+func (s *URLServiceImpl) GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
 	url, err := s.Store.FindByShortCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
-	host := os.Getenv("SHORT_URL_HOST")
-	url.ShortURL = host + url.ShortCode
+	url.ShortURL = s.Host + url.ShortCode
 	return url, nil
 }

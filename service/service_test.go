@@ -3,20 +3,20 @@ package service_test
 import (
 	"context"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sksmagr23/url-shortener-gofr/model"
-	"github.com/sksmagr23/url-shortener-gofr/service"
-	"github.com/sksmagr23/url-shortener-gofr/store"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/container"
+
+	"github.com/sksmagr23/url-shortener-gofr/model"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 )
 
 func TestGenerateShortCode(t *testing.T) {
@@ -47,60 +47,49 @@ func TestURLServiceCreate(t *testing.T) {
 	tests := []struct {
 		name          string
 		originalURL   string
-		hostEnv       string
+		host          string
 		expectError   bool
 		expectedError string
 	}{
 		{
 			name:        "Valid HTTPS URL",
 			originalURL: "https://example.com/test",
-			hostEnv:     "http://localhost:8000/",
+			host:        "http://localhost:8000/",
 			expectError: false,
 		},
 		{
 			name:        "Valid HTTP URL",
 			originalURL: "http://example.com/test",
-			hostEnv:     "http://localhost:8000/",
+			host:        "http://localhost:8000/",
 			expectError: false,
 		},
 		{
 			name:          "Invalid URL - No Protocol",
 			originalURL:   "example.com/test",
-			hostEnv:       "http://localhost:8000/",
+			host:          "http://localhost:8000/",
 			expectError:   true,
 			expectedError: "invalid URL",
 		},
 		{
 			name:          "Invalid URL - Empty",
 			originalURL:   "",
-			hostEnv:       "http://localhost:8000/",
+			host:          "http://localhost:8000/",
 			expectError:   true,
 			expectedError: "invalid URL",
 		},
 		{
-			name:        "Custom Host Environment",
+			name:        "Custom Host",
 			originalURL: "https://example.com/test",
-			hostEnv:     "https://myshortener.com/",
+			host:        "https://myshortener.com/",
 			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.hostEnv != "" {
-				if err := os.Setenv("SHORT_URL_HOST", tt.hostEnv); err != nil {
-					t.Fatalf("Failed to set environment variable: %v", err)
-				}
-				defer func() {
-					if err := os.Unsetenv("SHORT_URL_HOST"); err != nil {
-						t.Errorf("Failed to unset environment variable: %v", err)
-					}
-				}()
-			}
-
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
-			urlService := service.NewURLService(urlStore)
+			urlService := service.NewURLService(urlStore, tt.host)
 
 			if !tt.expectError {
 				mocks.Mongo.EXPECT().InsertOne(
@@ -131,11 +120,7 @@ func TestURLServiceCreate(t *testing.T) {
 			assert.NotEmpty(t, result.ShortURL)
 			assert.NotZero(t, result.CreatedAt)
 
-			expectedHost := tt.hostEnv
-			if expectedHost == "" {
-				expectedHost = "https://sksmagr23/"
-			}
-			assert.True(t, strings.HasPrefix(result.ShortURL, expectedHost))
+			assert.True(t, strings.HasPrefix(result.ShortURL, tt.host))
 			assert.True(t, strings.HasSuffix(result.ShortURL, result.ShortCode))
 		})
 	}
@@ -147,7 +132,7 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 		shortCode   string
 		mockURL     *model.URL
 		mockError   error
-		hostEnv     string
+		host        string
 		expectError bool
 	}{
 		{
@@ -160,7 +145,7 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 				CreatedAt: time.Now().UTC(),
 			},
 			mockError:   nil,
-			hostEnv:     "http://localhost:8000/",
+			host:        "http://localhost:8000/",
 			expectError: false,
 		},
 		{
@@ -168,11 +153,11 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 			shortCode:   "nonexistent",
 			mockURL:     nil,
 			mockError:   mongo.ErrNoDocuments,
-			hostEnv:     "http://localhost:8000/",
+			host:        "http://localhost:8000/",
 			expectError: true,
 		},
 		{
-			name:      "Custom Host Environment",
+			name:      "Custom Host",
 			shortCode: "abc123",
 			mockURL: &model.URL{
 				ID:        "test-id",
@@ -181,27 +166,16 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 				CreatedAt: time.Now().UTC(),
 			},
 			mockError:   nil,
-			hostEnv:     "https://myshortener.com/",
+			host:        "https://myshortener.com/",
 			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.hostEnv != "" {
-				if err := os.Setenv("SHORT_URL_HOST", tt.hostEnv); err != nil {
-					t.Fatalf("Failed to set environment variable: %v", err)
-				}
-				defer func() {
-					if err := os.Unsetenv("SHORT_URL_HOST"); err != nil {
-						t.Errorf("Failed to unset environment variable: %v", err)
-					}
-				}()
-			}
-
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
-			urlService := service.NewURLService(urlStore)
+			urlService := service.NewURLService(urlStore, tt.host)
 
 			if tt.mockError != nil {
 				mocks.Mongo.EXPECT().FindOne(
@@ -234,17 +208,12 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 
 			result.Original = tt.mockURL.Original
 			result.ShortCode = tt.mockURL.ShortCode
-
-			expectedHost := tt.hostEnv
-			if expectedHost == "" {
-				expectedHost = "https://sksmagr23/"
-			}
-			result.ShortURL = expectedHost + tt.mockURL.ShortCode
+			result.ShortURL = tt.host + tt.mockURL.ShortCode
 
 			assert.Equal(t, tt.mockURL.Original, result.Original)
 			assert.Equal(t, tt.mockURL.ShortCode, result.ShortCode)
 			assert.NotEmpty(t, result.ShortURL)
-			assert.True(t, strings.HasPrefix(result.ShortURL, expectedHost))
+			assert.True(t, strings.HasPrefix(result.ShortURL, tt.host))
 			assert.True(t, strings.HasSuffix(result.ShortURL, result.ShortCode))
 		})
 	}
@@ -253,7 +222,7 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore)
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
@@ -275,7 +244,7 @@ func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore)
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),

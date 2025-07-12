@@ -11,21 +11,22 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sksmagr23/url-shortener-gofr/handler"
-	"github.com/sksmagr23/url-shortener-gofr/model"
-	"github.com/sksmagr23/url-shortener-gofr/service"
-	"github.com/sksmagr23/url-shortener-gofr/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/container"
-	gofrHttp "gofr.dev/pkg/gofr/http"
 	"gofr.dev/pkg/gofr/http/response"
+
+	gofrHttp "gofr.dev/pkg/gofr/http"
+
+	"github.com/sksmagr23/url-shortener-gofr/handler"
+	"github.com/sksmagr23/url-shortener-gofr/model"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 )
 
-// Mock URLService for testing
 type MockURLService struct {
 	mock.Mock
 }
@@ -95,38 +96,30 @@ func TestURLCreateHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock container
 			mockContainer, _ := container.NewMockContainer(t)
 
-			// Create mock service
 			mockService := &MockURLService{}
 
-			// Set up mock expectations
 			mockService.On("Create", mock.Anything, mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
-			// Create handler with mock service
 			urlHandler := &handler.URLHandler{
 				Service: mockService,
 			}
 
-			// Create request body
 			requestBody, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/api/urls", bytes.NewBuffer(requestBody))
 			req.Header.Set("Content-Type", "application/json")
 			request := gofrHttp.NewRequest(req)
 
-			// Create context
 			ctx := &gofr.Context{
 				Context:   context.Background(),
 				Request:   request,
 				Container: mockContainer,
 			}
 
-			// Call handler
 			result, err := urlHandler.Create(ctx)
 
-			// Assertions
 			if tt.expectError {
 				assert.Error(t, err)
 				return
@@ -135,14 +128,11 @@ func TestURLCreateHandler(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 
-			// Verify the returned URL
 			url, ok := result.(*model.URL)
 			assert.True(t, ok, "Expected result to be *model.URL")
 			assert.Equal(t, tt.mockURL.Original, url.Original)
 			assert.Equal(t, tt.mockURL.ShortCode, url.ShortCode)
 			assert.NotEmpty(t, url.ShortURL)
-
-			// Verify mock was called
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -183,36 +173,28 @@ func TestURLGetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock container
 			mockContainer, _ := container.NewMockContainer(t)
 
-			// Create mock service
 			mockService := &MockURLService{}
 
-			// Set up mock expectations
 			mockService.On("GetByShortCode", mock.Anything, mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
-			// Create handler with mock service
 			urlHandler := &handler.URLHandler{
 				Service: mockService,
 			}
 
-			// Create request
 			req := httptest.NewRequest(http.MethodGet, "/api/urls/"+tt.shortCode, nil)
 			request := gofrHttp.NewRequest(req)
 
-			// Create context
 			ctx := &gofr.Context{
 				Context:   context.Background(),
 				Request:   request,
 				Container: mockContainer,
 			}
 
-			// Call handler
 			result, err := urlHandler.Get(ctx)
 
-			// Assertions
 			if tt.expectError {
 				assert.Error(t, err)
 				return
@@ -221,14 +203,11 @@ func TestURLGetHandler(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 
-			// Verify the returned URL
 			url, ok := result.(*model.URL)
 			assert.True(t, ok, "Expected result to be *model.URL")
 			assert.Equal(t, tt.mockURL.Original, url.Original)
 			assert.Equal(t, tt.mockURL.ShortCode, url.ShortCode)
 			assert.NotEmpty(t, url.ShortURL)
-
-			// Verify mock was called
 			mockService.AssertExpectations(t)
 		})
 	}
@@ -254,7 +233,7 @@ func TestURLRedirectHandler(t *testing.T) {
 				CreatedAt: time.Now().UTC(),
 			},
 			mockError:      nil,
-			expectedStatus: http.StatusFound, // 302 redirect
+			expectedStatus: http.StatusFound,
 			expectError:    false,
 		},
 		{
@@ -269,36 +248,28 @@ func TestURLRedirectHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock container
 			mockContainer, _ := container.NewMockContainer(t)
 
-			// Create mock service
 			mockService := &MockURLService{}
 
-			// Set up mock expectations
 			mockService.On("GetByShortCode", mock.Anything, mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
-			// Create handler with mock service
 			urlHandler := &handler.URLHandler{
 				Service: mockService,
 			}
 
-			// Create request
 			req := httptest.NewRequest(http.MethodGet, "/"+tt.shortCode, nil)
 			request := gofrHttp.NewRequest(req)
 
-			// Create context
 			ctx := &gofr.Context{
 				Context:   context.Background(),
 				Request:   request,
 				Container: mockContainer,
 			}
 
-			// Call handler
 			result, err := urlHandler.Redirect(ctx)
 
-			// Assertions
 			if tt.expectError {
 				assert.Error(t, err)
 				return
@@ -306,42 +277,33 @@ func TestURLRedirectHandler(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
-
-			// Verify the redirect response
 			redirect, ok := result.(response.Redirect)
 			assert.True(t, ok, "Expected result to be response.Redirect")
 			assert.Equal(t, tt.mockURL.Original, redirect.URL)
-
-			// Verify mock was called
 			mockService.AssertExpectations(t)
 		})
 	}
 }
 
-// Integration tests for service layer
+// Integration tests
 func TestURLServiceIntegration(t *testing.T) {
-	// Create mock container
 	mockContainer, mocks := container.NewMockContainer(t)
 
-	// Create store and service
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore)
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
 
-	// Test data
 	testURL := &model.URL{
 		Original:  "https://example.com/test",
 		ShortCode: "test123",
 		CreatedAt: time.Now().UTC(),
 	}
 
-	// Set up MongoDB mock expectations for Insert
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
 		"urls",
 		gomock.Any(),
 	).Return("test-id", nil)
 
-	// Set up MongoDB mock expectations for FindOne
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
@@ -349,13 +311,11 @@ func TestURLServiceIntegration(t *testing.T) {
 		gomock.Any(),
 	).Return(nil)
 
-	// Create context
 	ctx := &gofr.Context{
 		Context:   context.Background(),
 		Container: mockContainer,
 	}
 
-	// Test Create
 	createdURL, err := urlService.Create(ctx, "https://example.com/test")
 	assert.NoError(t, err)
 	assert.NotNil(t, createdURL)
@@ -363,12 +323,9 @@ func TestURLServiceIntegration(t *testing.T) {
 	assert.NotEmpty(t, createdURL.ShortCode)
 	assert.NotEmpty(t, createdURL.ShortURL)
 
-	// Test GetByShortCode
 	retrievedURL, err := urlService.GetByShortCode(ctx, "test123")
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedURL)
-
-	// Manually set fields since mock does not populate them
 	retrievedURL.Original = testURL.Original
 	retrievedURL.ShortCode = testURL.ShortCode
 	retrievedURL.ShortURL = "http://localhost:8000/" + testURL.ShortCode

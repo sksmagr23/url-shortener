@@ -3,9 +3,10 @@ package store
 import (
 	"time"
 
-	"github.com/sksmagr23/url-shortener-gofr/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"gofr.dev/pkg/gofr"
+
+	"github.com/sksmagr23/url-shortener-gofr/model"
 )
 
 type URLStore struct{}
