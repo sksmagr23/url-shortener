@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/sksmagr23/url-shortener-gofr/internal/handler"
-	"github.com/sksmagr23/url-shortener-gofr/internal/service"
-	"github.com/sksmagr23/url-shortener-gofr/internal/store"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/datasource/mongo"
+
+	"github.com/sksmagr23/url-shortener-gofr/handler"
+	"github.com/sksmagr23/url-shortener-gofr/service"
+	"github.com/sksmagr23/url-shortener-gofr/store"
 )
 
 func main() {
@@ -18,9 +19,9 @@ func main() {
 	if err != nil {
 		fmt.Println("Error loading .env config:", err)
 	}
-	
+
 	app := gofr.New()
-	
+
 	db := mongo.New(mongo.Config{
 		URI:               os.Getenv("MONGO_URI"),
 		Database:          os.Getenv("MONGO_DB"),
@@ -30,22 +31,17 @@ func main() {
 	app.AddMongo(db)
 
 	// Health check endpoint
-	app.GET("/health", func(ctx *gofr.Context) (interface{}, error) {
-		return map[string]interface{}{
-			"status": "healthy",
-			"services": map[string]string{
-				"mongoDB": "connected",
-			},
-		}, nil
-	})
+	app.GET("/health", handler.HealthHandler())
 
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore)
+	shortURLHost := os.Getenv("SHORT_URL_HOST")
+	urlService := service.NewURLService(urlStore, shortURLHost)
 	urlHandler := handler.NewURLHandler(urlService)
-	
+
 	// URL endpoints
-	app.POST("/api/urls", urlHandler.Create)
-	app.GET("/api/urls/{short_code}", urlHandler.Get)
+	app.POST("/urls", urlHandler.Create)
+	app.GET("/urls/{short_code}", urlHandler.Get)
+	app.GET("/{short_code}", urlHandler.Redirect)
 
 	app.Run()
 }

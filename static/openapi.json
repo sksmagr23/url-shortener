@@ -1,0 +1,181 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "URL Shortener API",
+    "version": "1.0.0",
+    "description": "API documentation for the URL Shortener service built with GoFr."
+  },
+  "servers": [
+    { "url": "http://localhost:8000" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Check the health status of the application and its dependencies.",
+        "responses": {
+          "200": {
+            "description": "Health status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/urls": {
+      "post": {
+        "summary": "Create Short URL",
+        "description": "Create a new short URL from a long URL.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateUrlRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Short URL created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UrlResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid URL",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/urls/{short_code}": {
+      "get": {
+        "summary": "Get URL Details",
+        "description": "Retrieve details of a short URL by its short code.",
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UrlResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "URL not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{short_code}": {
+      "get": {
+        "summary": "Redirect to Original URL",
+        "description": "Redirect to the original URL using the short code.",
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to original URL",
+            "headers": {
+              "Location": {
+                "description": "Original URL",
+                "schema": { "type": "string", "format": "uri" }
+              }
+            }
+          },
+          "404": {
+            "description": "URL not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "example": "healthy" },
+              "timestamp": { "type": "string", "format": "date-time" },
+              "services": {
+                "type": "object",
+                "properties": {
+                  "mongoDB": { "type": "string", "example": "connected" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "CreateUrlRequest": {
+        "type": "object",
+        "required": ["original_url"],
+        "properties": {
+          "original_url": { "type": "string", "format": "uri" }
+        }
+      },
+      "UrlResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
+              "original_url": { "type": "string", "format": "uri" },
+              "short_code": { "type": "string", "example": "abc123" },
+              "short_url": { "type": "string", "format": "uri" },
+              "created_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+} 
