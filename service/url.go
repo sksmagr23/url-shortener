@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"math/rand"
 	"strings"
 
@@ -30,18 +29,23 @@ func GenerateShortCode(length int) string {
 }
 
 type URLService interface {
-	Create(ctx *gofr.Context, original string) (*model.URL, error)
-	GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error)
+	Create(ctx *gofr.Context, userID, original string) (*model.URL, error)
+	GetByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error)
+	GetRedirectByShortCode(ctx *gofr.Context, code string) (*model.URL, error)
 }
 
-func (s *URLServiceImpl) Create(ctx *gofr.Context, original string) (*model.URL, error) {
+func (s *URLServiceImpl) Create(ctx *gofr.Context, userID, original string) (*model.URL, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
 	if !strings.HasPrefix(original, "http://") && !strings.HasPrefix(original, "https://") {
-		return nil, errors.New("invalid URL")
+		return nil, badRequest("invalid URL")
 	}
 	code := GenerateShortCode(6)
 	url := &model.URL{
 		Original:  original,
 		ShortCode: code,
+		UserID:    userID,
 	}
 	url.ShortURL = s.Host + code
 	err := s.Store.Insert(ctx, url)
@@ -51,8 +55,21 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, original string) (*model.URL,
 	return url, nil
 }
 
-func (s *URLServiceImpl) GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
-	url, err := s.Store.FindByShortCode(ctx, code)
+func (s *URLServiceImpl) GetByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
+
+	url, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+	url.ShortURL = s.Host + url.ShortCode
+	return url, nil
+}
+
+func (s *URLServiceImpl) GetRedirectByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
+	url, err := s.Store.FindPublicByShortCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}

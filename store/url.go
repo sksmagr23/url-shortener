@@ -21,7 +21,16 @@ func (s *URLStore) Insert(ctx *gofr.Context, url *model.URL) error {
 	return err
 }
 
-func (s *URLStore) FindByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
+func (s *URLStore) FindByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error) {
+	var result model.URL
+	err := ctx.Mongo.FindOne(ctx, "urls", bson.M{"short_code": code, "user_id": userID}, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (s *URLStore) FindPublicByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
 	var result model.URL
 	err := ctx.Mongo.FindOne(ctx, "urls", bson.M{"short_code": code}, &result)
 	if err != nil {

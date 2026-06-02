@@ -21,6 +21,7 @@ import (
 
 	gofrHttp "gofr.dev/pkg/gofr/http"
 
+	"github.com/sksmagr23/url-shortener-gofr/auth"
 	"github.com/sksmagr23/url-shortener-gofr/handler"
 	"github.com/sksmagr23/url-shortener-gofr/model"
 	"github.com/sksmagr23/url-shortener-gofr/service"
@@ -31,15 +32,23 @@ type MockURLService struct {
 	mock.Mock
 }
 
-func (m *MockURLService) Create(ctx *gofr.Context, original string) (*model.URL, error) {
-	args := m.Called(ctx, original)
+func (m *MockURLService) Create(ctx *gofr.Context, userID, original string) (*model.URL, error) {
+	args := m.Called(ctx, userID, original)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*model.URL), args.Error(1)
 }
 
-func (m *MockURLService) GetByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
+func (m *MockURLService) GetByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error) {
+	args := m.Called(ctx, userID, code)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URL), args.Error(1)
+}
+
+func (m *MockURLService) GetRedirectByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
 	args := m.Called(ctx, code)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -100,7 +109,7 @@ func TestURLCreateHandler(t *testing.T) {
 
 			mockService := &MockURLService{}
 
-			mockService.On("Create", mock.Anything, mock.Anything).
+			mockService.On("Create", mock.Anything, "user-1", mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
 			urlHandler := &handler.URLHandler{
@@ -113,7 +122,7 @@ func TestURLCreateHandler(t *testing.T) {
 			request := gofrHttp.NewRequest(req)
 
 			ctx := &gofr.Context{
-				Context:   context.Background(),
+				Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 				Request:   request,
 				Container: mockContainer,
 			}
@@ -177,7 +186,7 @@ func TestURLGetHandler(t *testing.T) {
 
 			mockService := &MockURLService{}
 
-			mockService.On("GetByShortCode", mock.Anything, mock.Anything).
+			mockService.On("GetByShortCode", mock.Anything, "user-1", mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
 			urlHandler := &handler.URLHandler{
@@ -188,7 +197,7 @@ func TestURLGetHandler(t *testing.T) {
 			request := gofrHttp.NewRequest(req)
 
 			ctx := &gofr.Context{
-				Context:   context.Background(),
+				Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 				Request:   request,
 				Container: mockContainer,
 			}
@@ -252,7 +261,7 @@ func TestURLRedirectHandler(t *testing.T) {
 
 			mockService := &MockURLService{}
 
-			mockService.On("GetByShortCode", mock.Anything, mock.Anything).
+			mockService.On("GetRedirectByShortCode", mock.Anything, mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
 			urlHandler := &handler.URLHandler{
@@ -307,23 +316,23 @@ func TestURLServiceIntegration(t *testing.T) {
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
-		bson.M{"short_code": "test123"},
+		bson.M{"short_code": "test123", "user_id": "user-1"},
 		gomock.Any(),
 	).Return(nil)
 
 	ctx := &gofr.Context{
-		Context:   context.Background(),
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 		Container: mockContainer,
 	}
 
-	createdURL, err := urlService.Create(ctx, "https://example.com/test")
+	createdURL, err := urlService.Create(ctx, "user-1", "https://example.com/test")
 	assert.NoError(t, err)
 	assert.NotNil(t, createdURL)
 	assert.Equal(t, "https://example.com/test", createdURL.Original)
 	assert.NotEmpty(t, createdURL.ShortCode)
 	assert.NotEmpty(t, createdURL.ShortURL)
 
-	retrievedURL, err := urlService.GetByShortCode(ctx, "test123")
+	retrievedURL, err := urlService.GetByShortCode(ctx, "user-1", "test123")
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedURL)
 	retrievedURL.Original = testURL.Original

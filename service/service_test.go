@@ -14,6 +14,7 @@ import (
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/container"
 
+	"github.com/sksmagr23/url-shortener-gofr/auth"
 	"github.com/sksmagr23/url-shortener-gofr/model"
 	"github.com/sksmagr23/url-shortener-gofr/service"
 	"github.com/sksmagr23/url-shortener-gofr/store"
@@ -100,11 +101,11 @@ func TestURLServiceCreate(t *testing.T) {
 			}
 
 			ctx := &gofr.Context{
-				Context:   context.Background(),
+				Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 				Container: mockContainer,
 			}
 
-			result, err := urlService.Create(ctx, tt.originalURL)
+			result, err := urlService.Create(ctx, "user-1", tt.originalURL)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -115,6 +116,7 @@ func TestURLServiceCreate(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, tt.originalURL, result.Original)
+			assert.Equal(t, "user-1", result.UserID)
 			assert.NotEmpty(t, result.ShortCode)
 			assert.Len(t, result.ShortCode, 6)
 			assert.NotEmpty(t, result.ShortURL)
@@ -181,24 +183,24 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 				mocks.Mongo.EXPECT().FindOne(
 					gomock.Any(),
 					"urls",
-					bson.M{"short_code": tt.shortCode},
+					bson.M{"short_code": tt.shortCode, "user_id": "user-1"},
 					gomock.Any(),
 				).Return(tt.mockError)
 			} else {
 				mocks.Mongo.EXPECT().FindOne(
 					gomock.Any(),
 					"urls",
-					bson.M{"short_code": tt.shortCode},
+					bson.M{"short_code": tt.shortCode, "user_id": "user-1"},
 					gomock.Any(),
 				).Return(nil)
 			}
 
 			ctx := &gofr.Context{
-				Context:   context.Background(),
+				Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 				Container: mockContainer,
 			}
 
-			result, err := urlService.GetByShortCode(ctx, tt.shortCode)
+			result, err := urlService.GetByShortCode(ctx, "user-1", tt.shortCode)
 			if tt.expectError {
 				assert.Error(t, err)
 				return
@@ -231,11 +233,11 @@ func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 	).Return("", errors.New("database connection failed"))
 
 	ctx := &gofr.Context{
-		Context:   context.Background(),
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 		Container: mockContainer,
 	}
 
-	result, err := urlService.Create(ctx, "https://example.com/test")
+	result, err := urlService.Create(ctx, "user-1", "https://example.com/test")
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "database connection failed")
@@ -249,16 +251,16 @@ func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
-		bson.M{"short_code": "test123"},
+		bson.M{"short_code": "test123", "user_id": "user-1"},
 		gomock.Any(),
 	).Return(errors.New("database connection failed"))
 
 	ctx := &gofr.Context{
-		Context:   context.Background(),
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 		Container: mockContainer,
 	}
 
-	result, err := urlService.GetByShortCode(ctx, "test123")
+	result, err := urlService.GetByShortCode(ctx, "user-1", "test123")
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "database connection failed")

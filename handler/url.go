@@ -4,6 +4,7 @@ import (
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/http/response"
 
+	"github.com/sksmagr23/url-shortener-gofr/auth"
 	"github.com/sksmagr23/url-shortener-gofr/service"
 )
 
@@ -17,13 +18,18 @@ func NewURLHandler(service service.URLService) *URLHandler {
 
 // POST /api/urls
 func (h *URLHandler) Create(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
 	var req struct {
 		OriginalURL string `json:"original_url"`
 	}
 	if err := ctx.Bind(&req); err != nil {
 		return nil, err
 	}
-	url, err := h.Service.Create(ctx, req.OriginalURL)
+	url, err := h.Service.Create(ctx, userID, req.OriginalURL)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +38,13 @@ func (h *URLHandler) Create(ctx *gofr.Context) (interface{}, error) {
 
 // GET /api/urls/{short_code}
 func (h *URLHandler) Get(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
 	code := ctx.PathParam("short_code")
-	url, err := h.Service.GetByShortCode(ctx, code)
+	url, err := h.Service.GetByShortCode(ctx, userID, code)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +54,7 @@ func (h *URLHandler) Get(ctx *gofr.Context) (interface{}, error) {
 // GET /{short_code}
 func (h *URLHandler) Redirect(ctx *gofr.Context) (interface{}, error) {
 	code := ctx.PathParam("short_code")
-	url, err := h.Service.GetByShortCode(ctx, code)
+	url, err := h.Service.GetRedirectByShortCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}

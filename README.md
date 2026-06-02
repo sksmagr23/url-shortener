@@ -1,14 +1,15 @@
 # URL Shortener with GoFr Framework
 
-## Features - PR1
+## Features
 
-- **URL Shortening**: Create short URLs from long URLs
-- **Custom Host Support**: Configurable short URL host via environment variables
-- **Health Checks**: Built-in health monitoring endpoints
-- **Comprehensive Testing**: Unit tests for all components
-- **Code Quality**: Linting with golangci-lint
-- **Three-Layer Architecture**
-- **Swagger Docs**: Iinteractive API docs at `/.well-known/swagger`.
+- URL shortening with public redirects
+- JWT based user authentication
+- User registration, login, profile updates, and API key generation
+- User-scoped URL management so users can only access their own shortened URLs
+- MongoDB persistence through GoFr
+- Health checks
+- Swagger docs at `/.well-known/swagger`
+- Unit and integration-style tests for handlers & services
 
 ## Project Structure
 
@@ -17,8 +18,10 @@
 ├── go.mod
 ├── handler/                # HTTP request handlers
 ├── service/                # Business logic layer
+├── auth/                   # JWT handling and authenticated context helpers
 ├── store/                  # Data access layer
 ├── model/                  # Data models
+├── static/openapi.json     # OpenAPI specification
 ├── configs/                # Configuration files
 ├── .golangci.yaml          # Linting configuration
 ├── Makefile                # Development tasks
@@ -29,160 +32,190 @@
 
 ### Three-Layer Architecture
 
-1. **Handler Layer** (`handler/`)
-   - HTTP request/response handling
-   - Input validation
-   - Error handling
+1. **Handler layer** (`handler/`)
+   - HTTP request handling
+   - Request parsing and response formatting
+   - Authentication and authorization wiring
 
-2. **Service Layer** (`service/`)
-   - Business logic
-   - URL generation and validation
-   - Environment configuration
+2. **Service layer** (`service/`)
+   - Business logic for users and URLs
+   - Password hashing, JWT creation, and API key generation
+   - Authorization checks and access controls
 
-3. **Store Layer** (`store/`)
-   - Data persistence
-   - MongoDB operations
-   - Database abstraction
+3. **Store layer** (`store/`)
+   - MongoDB CRUD operations
+   - User and URL persistence
+   - Data access abstractions
 
 ## Quick Start
 
-### 1. Setup
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/sksmagr23/url-shortener.git
 cd url-shortener-gofr
-
 make tidy
 ```
 
-### 2. Configuration
+### 2. Configure environment
 
-Set the following environment variables:
+Set the following environment variables in `configs/.env`:
 
 ```env
-MONGO_URI=mongodb://localhost:27017/
-MONGO_DB=url_shortener
+MONGO_URI=
+MONGO_DB=
 GOFR_TELEMETRY=false
-SHORT_URL_HOST=http://localhost:8000/
+SHORT_URL_HOST=
+JWT_SECRET=
 ```
 
-### 3. Run the Application
+### 3. Run the application
 
 ```bash
 make run
-# Or
+# or
 go run main.go
 ```
 
+---
+
 ## API Documentation
 
-#### Base URL : `http://localhost:8000`
+Base URL: `http://localhost:8000`
+
+Protected endpoints require:
+
+```http
+Authorization: Bearer <jwt_token>
+```
 
 ### 1. Health Check
 
 **Endpoint:** `GET /health`
-**Description:** Check the health status of the application and its dependencies.
 
-**Response:**
+**Description:** Returns service health and MongoDB connection status.
+
+### 2. Register
+
+**Endpoint:** `POST /users/register`
+
+**Request Body:**
+
+```json
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123"
+}
+```
+
+### 3. Login
+
+**Endpoint:** `POST /users/login`
+
+**Description:** Authenticate with `identifier` plus `password`.
+
+**Request Body:**
+
+```json
+{
+  "identifier": "test@example.com",
+  "password": "password123"
+}
+```
+
+**Success Response:**
+
 ```json
 {
   "data": {
-    "status": "healthy",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "services": {
-      "mongoDB": "connected" // or disconnected
+    "token": "<jwt_token>",
+    "user": {
+      "id": "507f1f77bcf86cd799439011",
+      "username": "testuser",
+      "email": "test@example.com"
     }
   }
 }
 ```
 
-### 2. Create Short URL
+### 4. Profile
+
+**Endpoints:**
+- `GET /users/profile`
+- `PUT /users/profile`
+
+**Request Body for update:**
+
+```json
+{
+  "username": "new-name",
+  "email": "new@example.com",
+  "password": "new-password"
+}
+```
+
+### 5. API Key
+
+**Endpoint:** `POST /users/api-key`
+
+**Description:** Generate a new API key for the authenticated user.
+
+### 6. Create Short URL
 
 **Endpoint:** `POST /urls`
-**Description:** Create a new short URL from a long URL.
+
+**Description:** Create a short URL from a long URL. Requires JWT.
+
 **Request Body:**
+
 ```json
 {
-  "original_url": "https://example.com/very-long-url-that-needs-to_shorten"
+  "original_url": "https://example.com/very-long-url"
 }
 ```
 
-**Success Response (200):**
-```json
-{
-  "data": {
-    "id": "507f1f77bcf86cd799439011",
-    "original_url": "https://example.com/very-long-url-that-needs-shortening",
-    "short_code": "abc123",
-    "short_url": "http://localhost:8000/abc123",
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
-**Error Response (400) - Invalid URL:**
-```json
-{
-  "error": {
-    "message": "invalid URL"
-  }
-}
-```
-
-### 3. Get URL Details
+### 7. Get URL Details
 
 **Endpoint:** `GET /urls/{short_code}`
-**Description:** Retrieve details of a short URL by its short code.
 
-**Success Response (200):**
-```json
-{
-  "data": {
-    "id": "507f1f77bcf86cd799439011",
-    "original_url": "https://example.com/very-long-url-that-needs-shortening",
-    "short_code": "abc123",
-    "short_url": "http://localhost:8000/abc123",
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
+**Description:** Retrieve URL details for the authenticated user.
 
-**Error Response (404) - URL Not Found:**
-```json
-{
-  "error": {
-    "message": "mongo: no documents in result"
-  }
-}
-```
-
-### 4. Redirect to Original URL
+### 8. Redirect
 
 **Endpoint:** `GET /{short_code}`
-**Description:** Redirect to the original URL using the short code.
 
-**Success Response (302):**
-```
-HTTP/1.1 302 Found
-Location: https://example.com/very-long-url-that-needs-shortening
-```
+**Description:** Public redirect to the original URL.
 
-**Error Response (404) - URL Not Found:**
+--- 
+
+## MongoDB Collections
+
+### `users`
+
 ```json
 {
-  "error": {
-    "message": "mongo: no documents in result"
-  }
+  "_id": "ObjectIdHex",
+  "username": "testuser",
+  "email": "test@example.com",
+  "password_hash": "bcrypt-hash",
+  "api_keys": ["usk_..."],
+  "created_at": "2026-06-01T00:00:00Z",
+  "updated_at": "2026-06-01T00:00:00Z"
 }
 ```
 
-## Swagger Documentation
+### `urls`
 
-This project supports automatic Swagger (OpenAPI) documentation via GoFr.
-
-- Place your `openapi.json` file in the `static/` directory at the project root.
-- GoFr will automatically serve interactive API docs at `/.well-known/swagger`.
-
+```json
+{
+  "_id": "ObjectId",
+  "original_url": "https://example.com/long-url",
+  "short_code": "abc123",
+  "user_id": "ObjectIdHex",
+  "created_at": "2026-06-01T00:00:00Z"
+}
+```
 
 ### Available make Commands
 
@@ -232,13 +265,4 @@ make lint-format
 - **Handler Tests**: HTTP endpoint testing
 - **Mock Testing**: Using GoFr's built-in mocking
 
-
-### MongoDB Urls collection
-```json
-{
-  "_id": "ObjectId",
-  "original_url": "https://example.com/long-url",
-  "short_code": "abc123",
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
+#### Author:- [Saksham Agrawal](https://github.com/sksmagr23)
