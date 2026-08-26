@@ -1,6 +1,6 @@
-# URL Shortener with GoFr Framework
+# URL Management Service
 
-A production-ready, feature-rich URL shortener backend service built with the [GoFr](https://gofr.dev) framework and MongoDB.
+A production-ready, high-performance URL Management & Link Analytics backend service built with the [GoFr](https://gofr.dev) framework, Redis, and MongoDB.
 
 ---
 

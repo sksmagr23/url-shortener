@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "URL Shortener API",
+    "title": "URL Management Service API",
     "version": "2.0.0",
     "description": "RESTful API documentation for the URL Shortener microservice built with the GoFr framework. Supports user management, API keys, custom branded domains, link expiry, and redirection."
   },
