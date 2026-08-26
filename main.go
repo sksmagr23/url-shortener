@@ -30,6 +30,7 @@ func main() {
 	})
 
 	app.AddMongo(db)
+	app.UseMiddleware(handler.MetadataMiddleware())
 	app.UseMiddleware(auth.JWTMiddleware(os.Getenv("JWT_SECRET")))
 
 	// Health check endpoint
@@ -40,8 +41,9 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 
 	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
 	shortURLHost := os.Getenv("SHORT_URL_HOST")
-	urlService := service.NewURLService(urlStore, shortURLHost)
+	urlService := service.NewURLService(urlStore, analyticsStore, shortURLHost)
 	urlHandler := handler.NewURLHandler(urlService)
 
 	// User endpoints

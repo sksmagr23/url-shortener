@@ -403,7 +403,8 @@ func TestURLServiceIntegration(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	testURL := &model.URL{
 		Original:  "https://example.com/test",

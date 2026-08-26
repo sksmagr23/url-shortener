@@ -4,16 +4,33 @@ A production-ready, feature-rich URL shortener backend service built with the [G
 
 ---
 
-## 🌟 Features
+## Features
 
-- **URL Shortening Engine**: Auto-generated 6-character short codes or custom memorable aliases.
-- **Custom Branded Domains**: Shorten links under custom domain aliases (e.g. `sksm.tech/my-link`).
-- **Link Expiry & Visibility**: Set UTC expiration dates and public/private access controls.
-- **User Management & Authentication**: User registration, login, profile updates, and JWT authentication.
-- **API Key Management**: Generate, list, and revoke developer API keys.
-- **MongoDB Data Persistence**: Primary storage for users and URLs via GoFr MongoDB connector.
-- **Interactive Swagger Documentation**: Standardized OpenAPI specs accessible at `/.well-known/swagger`.
-- **Comprehensive Testing**: Unit and integration test suite with GoFr container mocking.
+### 1. URL Shortening & Link Management
+- **Custom Aliases & Auto Generation**: Generate short 6-character random links or specify custom memorable aliases (3–64 characters) with real-time collision checks.
+- **Custom Branded Domains**: Support custom short domains (e.g. `me.tech/my-code` or `short.brand.com/my-code`) with domain normalization and HTTP/HTTPS protocol formatting.
+- **Link Expiration**: Set UTC expiration timestamps (`expires_at`) for temporary links. Expired links reject redirects with HTTP 404. Expiry dates can be updated or cleared.
+- **Public & Private Visibility**: Public links redirect any visitor; private links restrict redirection strictly to the link owner via JWT.
+- **URL Management**: Endpoints to create, retrieve details, update target URLs or settings, delete links, and list owned URLs with pagination and sorting.
+
+### 2. Link Analytics & Click Tracking
+- **Granular Click Logging**: Logs every redirection event with timestamp, short code, and target URL ID.
+- **Total vs Unique Clicks**: Tracks total redirects (`total_clicks`) alongside distinct unique visitors (`unique_clicks`) based on IP history per link.
+- **User-Agent & Device Classification**: Automatically detects and categorizes:
+  - **Browser**: Chrome, Safari, Firefox, Edge, Opera, Other.
+  - **OS**: Windows, macOS, Linux, iOS, Android, Unknown.
+  - **Device Type**: Desktop, Mobile, Tablet.
+- **Client IP & Proxy Resolution**: Extracts real client IP addresses through proxy headers (`X-Forwarded-For`, `X-Real-IP`).
+- **Referrer & Geo Tracking**: Captures HTTP `Referer` traffic sources and resolves IP addresses to country codes.
+
+### 3. User Accounts
+- **Registration & Security**: Account creation with unique username and email validation, securing passwords with `bcrypt`.
+- **JWT Authentication**: JSON Web Token authentication for protected user profiles, API key management, and link operations.
+- **Profile Management**: View and update profile details (username, email, password).
+
+### 4. Developer API Keys
+- **API Key Generation**: Cryptographically generated API keys (`usk_...`) for external API integration.
+- **Key Management**: List active keys and instantly revoke compromised or obsolete API keys.
 
 ---
 
@@ -226,6 +243,23 @@ Redirects callers to the original target URL and increments click count.
   "unique_clicks": 35,
   "created_at": "2026-06-01T00:00:00Z",
   "updated_at": "2026-06-01T00:00:00Z"
+}
+```
+
+### `click_events` Collection
+```json
+{
+  "_id": "ObjectIdHex",
+  "url_id": "ObjectIdHex",
+  "short_code": "my-code",
+  "timestamp": "2026-08-26T12:00:00Z",
+  "ip_address": "203.0.113.195",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...",
+  "browser": "Chrome",
+  "os": "Windows",
+  "device_type": "Desktop",
+  "country": "US",
+  "referrer": "https://google.com"
 }
 ```
 

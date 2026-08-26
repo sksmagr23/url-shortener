@@ -11,17 +11,19 @@ import (
 	"gofr.dev/pkg/gofr"
 	gofrHTTP "gofr.dev/pkg/gofr/http"
 
+	"github.com/sksmagr23/url-shortener-gofr/auth"
 	"github.com/sksmagr23/url-shortener-gofr/model"
 	"github.com/sksmagr23/url-shortener-gofr/store"
 )
 
 type URLServiceImpl struct {
-	Store *store.URLStore
-	Host  string
+	Store          *store.URLStore
+	AnalyticsStore *store.AnalyticsStore
+	Host           string
 }
 
-func NewURLService(store *store.URLStore, host string) URLService {
-	return &URLServiceImpl{Store: store, Host: host}
+func NewURLService(store *store.URLStore, analytics *store.AnalyticsStore, host string) URLService {
+	return &URLServiceImpl{Store: store, AnalyticsStore: analytics, Host: host}
 }
 
 func GenerateShortCode(length int) string {
@@ -209,7 +211,29 @@ func (s *URLServiceImpl) GetRedirectByShortCode(ctx *gofr.Context, userID, code 
 	}
 
 	url.ShortURL = s.shortURL(url)
-	_ = s.Store.IncrementClicks(ctx, code)
+
+	meta, ok := auth.MetadataFromContext(ctx.Context)
+	var isUnique bool
+	if ok && meta.IPAddress != "" {
+		hasClicked, _ := s.AnalyticsStore.HasIPClicked(ctx, code, meta.IPAddress)
+		isUnique = !hasClicked
+
+		click := &model.ClickEvent{
+			URLID:      url.ID,
+			ShortCode:  code,
+			Timestamp:  time.Now().UTC(),
+			IPAddress:  meta.IPAddress,
+			UserAgent:  meta.UserAgent,
+			Browser:    meta.Browser,
+			OS:         meta.OS,
+			DeviceType: meta.DeviceType,
+			Country:    meta.Country,
+			Referrer:   meta.Referrer,
+		}
+		_ = s.AnalyticsStore.InsertClick(ctx, click)
+	}
+
+	_ = s.Store.IncrementClicks(ctx, code, isUnique)
 
 	return url, nil
 }

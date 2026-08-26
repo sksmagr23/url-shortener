@@ -90,7 +90,8 @@ func TestURLServiceCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
-			urlService := service.NewURLService(urlStore, tt.host)
+			analyticsStore := store.NewAnalyticsStore()
+			urlService := service.NewURLService(urlStore, analyticsStore, tt.host)
 
 			if !tt.expectError {
 				mocks.Mongo.EXPECT().FindOne(
@@ -184,7 +185,8 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
-			urlService := service.NewURLService(urlStore, tt.host)
+			analyticsStore := store.NewAnalyticsStore()
+			urlService := service.NewURLService(urlStore, analyticsStore, tt.host)
 
 			if tt.mockError != nil {
 				mocks.Mongo.EXPECT().FindOne(
@@ -231,7 +233,8 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
@@ -259,7 +262,8 @@ func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -282,7 +286,8 @@ func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 func TestURLServiceCreateWithCustomCodeAndPublicFlag(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -314,7 +319,8 @@ func TestURLServiceCreateWithCustomCodeAndPublicFlag(t *testing.T) {
 func TestURLServiceCreateRejectsDuplicateCustomCode(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -338,7 +344,8 @@ func TestURLServiceCreateRejectsDuplicateCustomCode(t *testing.T) {
 func TestURLServicePrivateRedirectRequiresOwner(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -359,7 +366,8 @@ func TestURLServicePrivateRedirectRequiresOwner(t *testing.T) {
 func TestURLServiceCreateWithCustomDomain(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -391,7 +399,8 @@ func TestURLServiceCreateWithCustomDomain(t *testing.T) {
 func TestURLServiceUpdateCustomDomain(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
-	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
 
 	customDomain := "custom.example.com"
 
@@ -427,4 +436,71 @@ func TestURLServiceUpdateCustomDomain(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, "custom.example.com", result.CustomDomain)
 	assert.Equal(t, "https://custom.example.com/my-code", result.ShortURL)
+}
+
+func TestURLServiceGetRedirectRecordsClick(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+
+	// Expect FindPublicByShortCode query
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ID = "url-123"
+			u.ShortCode = "my-code"
+			u.Public = true
+		}
+		return nil
+	})
+
+	// Expect HasIPClicked query
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"click_events",
+		bson.M{"short_code": "my-code", "ip_address": "203.0.113.195"},
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+
+	// Expect InsertClick write
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		"click_events",
+		gomock.Any(),
+	).Return("click-123", nil)
+
+	// Expect IncrementClicks write
+	mocks.Mongo.EXPECT().UpdateOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code"},
+		gomock.Any(),
+	).Return(nil)
+
+	// Set up context with metadata
+	meta := auth.RequestMetadata{
+		IPAddress:  "203.0.113.195",
+		UserAgent:  "Mozilla",
+		Referrer:   "https://google.com",
+		Browser:    "Chrome",
+		OS:         "Windows",
+		DeviceType: "Desktop",
+		Country:    "US",
+	}
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithMetadata(context.Background(), meta),
+		Container: mockContainer,
+	}
+
+	result, err := urlService.GetRedirectByShortCode(ctx, "", "my-code")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "url-123", result.ID)
 }

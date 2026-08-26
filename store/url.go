@@ -97,9 +97,13 @@ func (s *URLStore) DeleteByShortCode(ctx *gofr.Context, userID, code string) err
 	return err
 }
 
-func (s *URLStore) IncrementClicks(ctx *gofr.Context, code string) error {
+func (s *URLStore) IncrementClicks(ctx *gofr.Context, code string, isUnique bool) error {
+	inc := bson.M{"total_clicks": 1}
+	if isUnique {
+		inc["unique_clicks"] = 1
+	}
 	return ctx.Mongo.UpdateOne(ctx, "urls", bson.M{"short_code": code}, bson.M{
-		"$inc": bson.M{"total_clicks": 1},
+		"$inc": inc,
 		"$set": bson.M{"updated_at": time.Now().UTC()},
 	})
 }
