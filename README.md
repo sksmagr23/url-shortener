@@ -32,6 +32,11 @@ A production-ready, feature-rich URL shortener backend service built with the [G
 - **API Key Generation**: Cryptographically generated API keys (`usk_...`) for external API integration.
 - **Key Management**: List active keys and instantly revoke compromised or obsolete API keys.
 
+### 5. Redis Caching & High-Performance Redirects
+- **Sub-Millisecond Redirection Caching**: Short code target lookups are cached in Redis (`url:<short_code>`), achieving high-throughput sub-millisecond redirection responses.
+- **Automatic Cache Invalidation**: Modifying or deleting links immediately purges stale cache entries from Redis.
+- **Resilient Fallback Strategy**: If Redis is offline or unconfigured, the application seamlessly falls back to MongoDB without throwing errors or dropping requests.
+
 ---
 
 ## Project Structure
@@ -41,7 +46,7 @@ main.go                 # Application entry point & route registrations
 handler/                # HTTP request handlers (User, URL, Health)
 service/                # Business logic layer (User, URL generation & validation)
 auth/                   # JWT creation, token validation & middleware
-store/                  # MongoDB data access layer (UserStore & URLStore)
+store/                  # Database & Caching access layer (UserStore, URLStore, AnalyticsStore, URLCache)
 model/                  # Domain models & request/response DTOs
 static/openapi.json     # OpenAPI 3.0 specification for Swagger UI
 configs/                # Configuration directory (.env file)
@@ -55,7 +60,7 @@ The application follows GoFr's recommended **3-Layer Clean Architecture**:
 
 1. **Handler Layer (`handler/`)**: Parses HTTP requests, validates incoming JSON payloads, extracts authenticated user context, and formats JSON responses.
 2. **Service Layer (`service/`)**: Contains core domain rules (URL validation, custom code collision checks, domain normalization, password hashing, JWT creation, expiry checks, and privacy permissions).
-3. **Store Layer (`store/`)**: Encapsulates database CRUD operations against MongoDB collections (`users` and `urls`).
+3. **Store & Cache Layer (`store/`)**: Encapsulates data operations against MongoDB (`users`, `urls`, `click_events`) and Redis cache (`url:<code`).
 
 ---
 
@@ -76,7 +81,13 @@ MONGO_DB=url_shortener
 GOFR_TELEMETRY=false
 SHORT_URL_HOST=http://localhost:8000/
 JWT_SECRET=replace-with-a-long-random-secret
+
+# Redis Configuration (Optional: set REDIS_HOST to enable caching)
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
+
+> **Note on Redis**: If you have Redis running (or started via `docker run -p 6379:6379 -d redis:7`), GoFr automatically connects to it. If you don't run Redis locally, you can comment out `REDIS_HOST` in `.env` to run purely on MongoDB.
 
 ### 3. Run Application
 ```bash

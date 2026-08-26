@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/redis/go-redis/v9"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/container"
 
@@ -91,7 +92,7 @@ func TestURLServiceCreate(t *testing.T) {
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
 			analyticsStore := store.NewAnalyticsStore()
-			urlService := service.NewURLService(urlStore, analyticsStore, tt.host)
+			urlService := service.NewURLService(urlStore, analyticsStore, nil, tt.host)
 
 			if !tt.expectError {
 				mocks.Mongo.EXPECT().FindOne(
@@ -186,7 +187,7 @@ func TestURLServiceGetByShortCode(t *testing.T) {
 			mockContainer, mocks := container.NewMockContainer(t)
 			urlStore := store.NewURLStore()
 			analyticsStore := store.NewAnalyticsStore()
-			urlService := service.NewURLService(urlStore, analyticsStore, tt.host)
+			urlService := service.NewURLService(urlStore, analyticsStore, nil, tt.host)
 
 			if tt.mockError != nil {
 				mocks.Mongo.EXPECT().FindOne(
@@ -234,7 +235,7 @@ func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
@@ -263,7 +264,7 @@ func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -287,7 +288,7 @@ func TestURLServiceCreateWithCustomCodeAndPublicFlag(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -320,7 +321,7 @@ func TestURLServiceCreateRejectsDuplicateCustomCode(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -345,7 +346,7 @@ func TestURLServicePrivateRedirectRequiresOwner(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -367,7 +368,7 @@ func TestURLServiceCreateWithCustomDomain(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
@@ -400,7 +401,7 @@ func TestURLServiceUpdateCustomDomain(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	customDomain := "custom.example.com"
 
@@ -442,7 +443,7 @@ func TestURLServiceGetRedirectRecordsClick(t *testing.T) {
 	mockContainer, mocks := container.NewMockContainer(t)
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	// Expect FindPublicByShortCode query
 	mocks.Mongo.EXPECT().FindOne(
@@ -503,4 +504,70 @@ func TestURLServiceGetRedirectRecordsClick(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "url-123", result.ID)
+	time.Sleep(30 * time.Millisecond)
+}
+
+func TestURLServiceCacheHit(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlCache := store.NewURLCache()
+	urlService := service.NewURLService(nil, nil, urlCache, "http://localhost:8000/")
+
+	cachedURLJSON := `{"id":"cached-id","original_url":"https://cached.com","short_code":"cached-code","public":true}`
+
+	mocks.Redis.EXPECT().Get(gomock.Any(), "url:cached-code").Return(redis.NewStringResult(cachedURLJSON, nil))
+
+	ctx := &gofr.Context{
+		Context:   context.Background(),
+		Container: mockContainer,
+	}
+
+	result, err := urlService.GetRedirectByShortCode(ctx, "", "cached-code")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "https://cached.com", result.Original)
+	assert.Equal(t, "http://localhost:8000/cached-code", result.ShortURL)
+}
+
+func TestURLServiceUpdateInvalidatesCache(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
+	urlCache := store.NewURLCache()
+	urlService := service.NewURLService(urlStore, analyticsStore, urlCache, "http://localhost:8000/")
+
+	customDomain := "custom.example.com"
+
+	mocks.Mongo.EXPECT().UpdateOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).Return(nil)
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = "my-code"
+			u.CustomDomain = "custom.example.com"
+		}
+		return nil
+	})
+
+	mocks.Redis.EXPECT().Del(gomock.Any(), "url:my-code").Return(redis.NewIntResult(1, nil))
+
+	result, err := urlService.Update(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}, "user-1", "my-code", service.URLUpdateInput{
+		CustomDomain: &customDomain,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }

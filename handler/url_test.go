@@ -404,7 +404,7 @@ func TestURLServiceIntegration(t *testing.T) {
 
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
-	urlService := service.NewURLService(urlStore, analyticsStore, "http://localhost:8000/")
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
 
 	testURL := &model.URL{
 		Original:  "https://example.com/test",

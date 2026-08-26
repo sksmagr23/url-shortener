@@ -410,7 +410,9 @@ Deletes a URL owned by the authenticated user.
 ## 5. Redirection Endpoint
 
 ### `GET /{short_code}`
-Redirects callers to the original target URL while asynchronously capturing click metadata (IP, User-Agent, Referrer, Browser, OS, Device Type, Country) and updating `total_clicks` and `unique_clicks`.
+Redirects callers to the original target URL.
+- **Performance Optimization**: Served with **sub-millisecond latency** via Redis cache (`url:<short_code>`).
+- **Asynchronous Processing**: Click metadata logging (IP, User-Agent, Referrer, Browser, OS, Device Type, Country) and unique click updates run in background workers without blocking HTTP redirection.
 
 - **Authentication**: None for public links (`"public": true`); Required (`Bearer <jwt_token>`) for private links (`"public": false`).
 - **Path Parameters**:

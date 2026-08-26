@@ -42,8 +42,9 @@ func main() {
 
 	urlStore := store.NewURLStore()
 	analyticsStore := store.NewAnalyticsStore()
+	urlCache := store.NewURLCache()
 	shortURLHost := os.Getenv("SHORT_URL_HOST")
-	urlService := service.NewURLService(urlStore, analyticsStore, shortURLHost)
+	urlService := service.NewURLService(urlStore, analyticsStore, urlCache, shortURLHost)
 	urlHandler := handler.NewURLHandler(urlService)
 
 	// User endpoints

@@ -19,11 +19,12 @@ import (
 type URLServiceImpl struct {
 	Store          *store.URLStore
 	AnalyticsStore *store.AnalyticsStore
+	Cache          *store.URLCache
 	Host           string
 }
 
-func NewURLService(store *store.URLStore, analytics *store.AnalyticsStore, host string) URLService {
-	return &URLServiceImpl{Store: store, AnalyticsStore: analytics, Host: host}
+func NewURLService(store *store.URLStore, analytics *store.AnalyticsStore, cache *store.URLCache, host string) URLService {
+	return &URLServiceImpl{Store: store, AnalyticsStore: analytics, Cache: cache, Host: host}
 }
 
 func GenerateShortCode(length int) string {
@@ -185,6 +186,10 @@ func (s *URLServiceImpl) Update(ctx *gofr.Context, userID, code string, input UR
 		return nil, err
 	}
 
+	if s.Cache != nil {
+		_ = s.Cache.DeleteURL(ctx, code)
+	}
+
 	url.ShortURL = s.shortURL(url)
 
 	return url, nil
@@ -195,31 +200,60 @@ func (s *URLServiceImpl) Delete(ctx *gofr.Context, userID, code string) error {
 		return unauthorized("missing authenticated user")
 	}
 
+	if s.Cache != nil {
+		_ = s.Cache.DeleteURL(ctx, code)
+	}
+
 	return s.Store.DeleteByShortCode(ctx, userID, code)
 }
 
 func (s *URLServiceImpl) GetRedirectByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error) {
-	url, err := s.Store.FindPublicByShortCode(ctx, code)
-	if err != nil {
-		return nil, err
+	var targetURL *model.URL
+
+	if s.Cache != nil {
+		cachedURL, err := s.Cache.GetURL(ctx, code)
+		if err == nil && cachedURL != nil {
+			targetURL = cachedURL
+		}
 	}
-	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+
+	if targetURL == nil {
+		dbURL, err := s.Store.FindPublicByShortCode(ctx, code)
+		if err != nil {
+			return nil, err
+		}
+		targetURL = dbURL
+
+		if s.Cache != nil {
+			_ = s.Cache.SetURL(ctx, targetURL, 24*time.Hour)
+		}
+	}
+
+	if targetURL.ExpiresAt != nil && time.Now().After(*targetURL.ExpiresAt) {
 		return nil, gofrHTTP.ErrorEntityNotFound{Name: "short_code", Value: code}
 	}
-	if !url.Public && url.UserID != userID {
+	if !targetURL.Public && targetURL.UserID != userID {
 		return nil, unauthorized("private URL requires owner authentication")
 	}
 
-	url.ShortURL = s.shortURL(url)
+	targetURL.ShortURL = s.shortURL(targetURL)
 
 	meta, ok := auth.MetadataFromContext(ctx.Context)
+	if s.AnalyticsStore != nil && s.Store != nil {
+		go s.recordClickAsync(ctx, targetURL.ID, code, meta, ok)
+	}
+
+	return targetURL, nil
+}
+
+func (s *URLServiceImpl) recordClickAsync(ctx *gofr.Context, urlID, code string, meta auth.RequestMetadata, metaValid bool) {
 	var isUnique bool
-	if ok && meta.IPAddress != "" {
+	if metaValid && meta.IPAddress != "" {
 		hasClicked, _ := s.AnalyticsStore.HasIPClicked(ctx, code, meta.IPAddress)
 		isUnique = !hasClicked
 
 		click := &model.ClickEvent{
-			URLID:      url.ID,
+			URLID:      urlID,
 			ShortCode:  code,
 			Timestamp:  time.Now().UTC(),
 			IPAddress:  meta.IPAddress,
@@ -234,8 +268,6 @@ func (s *URLServiceImpl) GetRedirectByShortCode(ctx *gofr.Context, userID, code 
 	}
 
 	_ = s.Store.IncrementClicks(ctx, code, isUnique)
-
-	return url, nil
 }
 
 func (s *URLServiceImpl) ensureShortCodeAvailable(ctx *gofr.Context, code string) error {
