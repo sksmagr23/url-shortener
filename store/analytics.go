@@ -9,28 +9,53 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"
+	"gofr.dev/pkg/gofr/container"
 
 	"github.com/sksmagr23/url-shortener-gofr/model"
 )
 
-type AnalyticsStore struct{}
+type AnalyticsStore struct {
+	Mongo container.Mongo
+}
 
 func NewAnalyticsStore() *AnalyticsStore {
 	return &AnalyticsStore{}
 }
 
+func NewAnalyticsStoreWithMongo(m container.Mongo) *AnalyticsStore {
+	return &AnalyticsStore{Mongo: m}
+}
+
+func (s *AnalyticsStore) getMongo(ctx *gofr.Context) container.Mongo {
+	if ctx != nil && ctx.Container != nil && ctx.Mongo != nil {
+		return ctx.Mongo
+	}
+	if s != nil && s.Mongo != nil {
+		return s.Mongo
+	}
+	return nil
+}
+
 func (s *AnalyticsStore) InsertClick(ctx *gofr.Context, click *model.ClickEvent) error {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return errors.New("mongodb datasource is not available")
+	}
 	click.ID = primitive.NewObjectID().Hex()
 	if click.Timestamp.IsZero() {
 		click.Timestamp = time.Now().UTC()
 	}
-	_, err := ctx.Mongo.InsertOne(ctx, "click_events", click)
+	_, err := m.InsertOne(ctx, "click_events", click)
 	return err
 }
 
 func (s *AnalyticsStore) HasIPClicked(ctx *gofr.Context, shortCode, ip string) (bool, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return false, errors.New("mongodb datasource is not available")
+	}
 	var result model.ClickEvent
-	err := ctx.Mongo.FindOne(ctx, "click_events", bson.M{"short_code": shortCode, "ip_address": ip}, &result)
+	err := m.FindOne(ctx, "click_events", bson.M{"short_code": shortCode, "ip_address": ip}, &result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return false, nil
 	}
@@ -41,12 +66,16 @@ func (s *AnalyticsStore) HasIPClicked(ctx *gofr.Context, shortCode, ip string) (
 }
 
 func (s *AnalyticsStore) GetFieldBreakdown(ctx *gofr.Context, shortCode, fieldName string, limit int) ([]model.BreakdownItem, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
 	if limit <= 0 {
 		limit = 10
 	}
 
 	var events []model.ClickEvent
-	err := ctx.Mongo.Find(ctx, "click_events", bson.M{"short_code": shortCode}, &events)
+	err := m.Find(ctx, "click_events", bson.M{"short_code": shortCode}, &events)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +121,16 @@ func (s *AnalyticsStore) GetFieldBreakdown(ctx *gofr.Context, shortCode, fieldNa
 }
 
 func (s *AnalyticsStore) GetTimeseries(ctx *gofr.Context, shortCode, unit string, limit int) ([]model.TimeseriesPoint, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
 	if limit <= 0 {
 		limit = 30
 	}
 
 	var events []model.ClickEvent
-	err := ctx.Mongo.Find(ctx, "click_events", bson.M{"short_code": shortCode}, &events)
+	err := m.Find(ctx, "click_events", bson.M{"short_code": shortCode}, &events)
 	if err != nil {
 		return nil, err
 	}

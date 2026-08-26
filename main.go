@@ -31,17 +31,19 @@ func main() {
 
 	app.AddMongo(db)
 	app.UseMiddleware(handler.MetadataMiddleware())
-	app.UseMiddleware(auth.JWTMiddleware(os.Getenv("JWT_SECRET")))
+	app.UseMiddleware(handler.RateLimiterMiddleware(100))
+
+	userStore := store.NewUserStoreWithMongo(db)
+	app.UseMiddleware(auth.AuthMiddleware(os.Getenv("JWT_SECRET"), userStore))
 
 	// Health check endpoint
 	app.GET("/health", handler.HealthHandler())
 
-	userStore := store.NewUserStore()
 	userService := service.NewUserService(userStore, os.Getenv("JWT_SECRET"))
 	userHandler := handler.NewUserHandler(userService)
 
-	urlStore := store.NewURLStore()
-	analyticsStore := store.NewAnalyticsStore()
+	urlStore := store.NewURLStoreWithMongo(db)
+	analyticsStore := store.NewAnalyticsStoreWithMongo(db)
 	urlCache := store.NewURLCache()
 	shortURLHost := os.Getenv("SHORT_URL_HOST")
 	urlService := service.NewURLService(urlStore, analyticsStore, urlCache, shortURLHost)

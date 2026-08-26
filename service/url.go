@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"sort"
@@ -249,9 +250,14 @@ func (s *URLServiceImpl) GetRedirectByShortCode(ctx *gofr.Context, userID, code 
 }
 
 func (s *URLServiceImpl) recordClickAsync(ctx *gofr.Context, urlID, code string, meta auth.RequestMetadata, metaValid bool) {
+	bgCtx := &gofr.Context{
+		Context:   context.Background(),
+		Container: ctx.Container,
+	}
+
 	var isUnique bool
 	if metaValid && meta.IPAddress != "" {
-		hasClicked, _ := s.AnalyticsStore.HasIPClicked(ctx, code, meta.IPAddress)
+		hasClicked, _ := s.AnalyticsStore.HasIPClicked(bgCtx, code, meta.IPAddress)
 		isUnique = !hasClicked
 
 		click := &model.ClickEvent{
@@ -266,10 +272,10 @@ func (s *URLServiceImpl) recordClickAsync(ctx *gofr.Context, urlID, code string,
 			Country:    meta.Country,
 			Referrer:   meta.Referrer,
 		}
-		_ = s.AnalyticsStore.InsertClick(ctx, click)
+		_ = s.AnalyticsStore.InsertClick(bgCtx, click)
 	}
 
-	_ = s.Store.IncrementClicks(ctx, code, isUnique)
+	_ = s.Store.IncrementClicks(bgCtx, code, isUnique)
 }
 
 func (s *URLServiceImpl) ensureShortCodeAvailable(ctx *gofr.Context, code string) error {

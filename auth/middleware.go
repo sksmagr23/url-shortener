@@ -4,39 +4,77 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"gofr.dev/pkg/gofr"
+
+	"github.com/sksmagr23/url-shortener-gofr/model"
 )
 
+type APIKeyValidator interface {
+	FindByAPIKey(ctx *gofr.Context, apiKey string) (*model.User, error)
+}
+
 func JWTMiddleware(secret string) func(http.Handler) http.Handler {
+	return AuthMiddleware(secret, nil)
+}
+
+func AuthMiddleware(secret string, validator APIKeyValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenString := bearerToken(r.Header.Get("Authorization"))
+			apiKeyHeader := strings.TrimSpace(r.Header.Get("X-API-Key"))
 
-			if !requiresJWT(r) {
-				if tokenString != "" {
-					claims, err := ValidateToken(tokenString, secret)
-					if err != nil {
-						writeUnauthorized(w, "invalid bearer token")
+			// Check if API key is supplied via X-API-Key or Authorization Bearer usk_...
+			var apiKey string
+			if apiKeyHeader != "" {
+				apiKey = apiKeyHeader
+			} else if strings.HasPrefix(tokenString, "usk_") {
+				apiKey = tokenString
+			}
 
-						return
+			if !requiresAuth(r) {
+				if apiKey != "" && validator != nil {
+					gofrCtx := &gofr.Context{Context: r.Context()}
+					user, err := validator.FindByAPIKey(gofrCtx, apiKey)
+					if err == nil && user != nil {
+						r = r.WithContext(ContextWithUserID(r.Context(), user.ID))
 					}
-
-					r = r.WithContext(ContextWithUserID(r.Context(), claims.UserID))
+				} else if tokenString != "" && !strings.HasPrefix(tokenString, "usk_") {
+					claims, err := ValidateToken(tokenString, secret)
+					if err == nil && claims != nil {
+						r = r.WithContext(ContextWithUserID(r.Context(), claims.UserID))
+					}
 				}
 				next.ServeHTTP(w, r)
+				return
+			}
 
+			// Required authentication endpoints
+			if apiKey != "" && validator != nil {
+				gofrCtx := &gofr.Context{Context: r.Context()}
+				user, err := validator.FindByAPIKey(gofrCtx, apiKey)
+				if err != nil || user == nil {
+					writeUnauthorized(w, "invalid API key")
+					return
+				}
+				ctx := ContextWithUserID(r.Context(), user.ID)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
 			if tokenString == "" {
-				writeUnauthorized(w, "missing bearer token")
+				writeUnauthorized(w, "missing authentication token or API key")
+				return
+			}
 
+			if strings.HasPrefix(tokenString, "usk_") {
+				writeUnauthorized(w, "invalid API key")
 				return
 			}
 
 			claims, err := ValidateToken(tokenString, secret)
 			if err != nil {
 				writeUnauthorized(w, "invalid bearer token")
-
 				return
 			}
 
@@ -46,7 +84,7 @@ func JWTMiddleware(secret string) func(http.Handler) http.Handler {
 	}
 }
 
-func requiresJWT(r *http.Request) bool {
+func requiresAuth(r *http.Request) bool {
 	path := r.URL.Path
 
 	if path == "/users/register" || path == "/users/login" {

@@ -8,15 +8,36 @@
 
 ---
 
-## Authentication
+## Authentication & Security
 
-Protected endpoints require a Bearer token in the `Authorization` header:
+Protected endpoints accept authentication via **either** of the following headers:
 
-```http
-Authorization: Bearer <jwt_token>
-```
+1. **JWT Bearer Token**:
+   ```http
+   Authorization: Bearer <jwt_token>
+   ```
 
-Private short links (`"public": false`) also require the owner's Bearer JWT token when calling the redirection endpoint `GET /{short_code}`.
+2. **Developer API Key**:
+   ```http
+   X-API-Key: usk_...
+   ```
+   *(Or `Authorization: Bearer usk_...`)*
+
+Private short links (`"public": false`) also require owner authentication via JWT or API Key when accessing the redirection endpoint `GET /{short_code}`.
+
+### ⏱️ Rate Limiting
+All endpoints enforce sliding-window rate limiting (100 requests per minute per IP/User). If exceeded:
+- **HTTP Status**: `429 Too Many Requests`
+- **Response Header**: `Retry-After: 60`
+- **Response Body**:
+  ```json
+  {
+    "error": {
+      "code": 429,
+      "message": "rate limit exceeded, please try again later"
+    }
+  }
+  ```
 
 ---
 

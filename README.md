@@ -27,14 +27,21 @@ A production-ready, feature-rich URL shortener backend service built with the [G
 - **JWT Authentication**: JSON Web Token authentication for protected user profiles, API key management, and link operations.
 - **Profile Management**: View and update profile details (username, email, password).
 
-### 4. Developer API Keys
-- **API Key Generation**: Cryptographically generated API keys (`usk_...`) for external API integration.
-- **Key Management**: List active keys and instantly revoke compromised or obsolete API keys.
+### 4. Developer API Keys & Automation
+- **Why API Keys alongside JWT?**:
+  - **JWT Tokens**: Short-lived login sessions for human users browsing the website interface.
+  - **API Keys (`usk_...`)**: Long-lived access keys for automated scripts, Python code, Slack bots, and CI/CD tools to create and manage links programmatically without hardcoding account passwords.
+- **Leak Protection & Instant Revocation**: Generate separate keys for different applications. If a script or key is ever leaked, you can instantly revoke that single key without changing your account password.
 
 ### 5. Redis Caching & High-Performance Redirects
 - **Sub-Millisecond Redirection Caching**: Short code target lookups are cached in Redis (`url:<short_code>`), achieving high-throughput sub-millisecond redirection responses.
 - **Automatic Cache Invalidation**: Modifying or deleting links immediately purges stale cache entries from Redis.
 - **Resilient Fallback Strategy**: If Redis is offline or unconfigured, the application seamlessly falls back to MongoDB without throwing errors or dropping requests.
+
+### 6. Security, Rate Limiting & Dual Authentication
+- **Dual Header Authentication**: Supports both **JWT Bearer tokens** and **Developer API Keys** (`X-API-Key: usk_...`) across all protected endpoints.
+- **Sliding-Window Rate Limiting**: Enforces strict rate limits (100 requests per minute per IP/User) returning `HTTP 429 Too Many Requests` with `Retry-After: 60` headers to prevent link abuse and brute-force attacks.
+- **RFC 3986 URL Safety & Malicious Scheme Prevention**: Strict target URL parsing and validation rejecting unsafe protocols (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`).
 
 ---
 
