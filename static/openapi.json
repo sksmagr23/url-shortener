@@ -29,6 +29,10 @@
       "description": "URL shortening, listing, detail retrieval, updating, and deletion"
     },
     {
+      "name": "Analytics",
+      "description": "Detailed click statistics, device breakdowns, and timeseries reporting"
+    },
+    {
       "name": "Redirection",
       "description": "Public and owner-protected URL redirection"
     }
@@ -395,6 +399,67 @@
                 }
               }
             }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/urls/{short_code}/analytics": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get URL Analytics Summary",
+        "description": "Retrieves comprehensive click summary analytics for an owned URL, including total clicks, unique clicks, and breakdowns by Browser, OS, Device Type, Country, and Top Referrers.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analytics summary retrieved successfully"
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/urls/{short_code}/analytics/timeseries": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get URL Analytics Timeseries",
+        "description": "Retrieves click volume aggregated over time (by hour or day) for an owned URL.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "unit",
+            "in": "query",
+            "required": false,
+            "description": "Aggregation unit: 'hour' or 'day' (default: 'day')",
+            "schema": { "type": "string", "default": "day" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of timeseries points (default: 30)",
+            "schema": { "type": "integer", "default": 30 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeseries analytics retrieved successfully"
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }

@@ -60,6 +60,8 @@ func main() {
 	app.POST("/urls", urlHandler.Create)
 	app.GET("/urls", urlHandler.List)
 	app.GET("/urls/{short_code}", urlHandler.Get)
+	app.GET("/urls/{short_code}/analytics", urlHandler.GetAnalyticsSummary)
+	app.GET("/urls/{short_code}/analytics/timeseries", urlHandler.GetAnalyticsTimeseries)
 	app.PUT("/urls/{short_code}", urlHandler.Update)
 	app.DELETE("/urls/{short_code}", urlHandler.Delete)
 	app.GET("/{short_code}", urlHandler.Redirect)

@@ -139,6 +139,39 @@ func (h *URLHandler) Redirect(ctx *gofr.Context) (interface{}, error) {
 	return response.Redirect{URL: url.Original}, nil
 }
 
+// GET /urls/{short_code}/analytics
+func (h *URLHandler) GetAnalyticsSummary(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
+	code := ctx.PathParam("short_code")
+	summary, err := h.Service.GetAnalyticsSummary(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+	return summary, nil
+}
+
+// GET /urls/{short_code}/analytics/timeseries
+func (h *URLHandler) GetAnalyticsTimeseries(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
+	code := ctx.PathParam("short_code")
+	unit := ctx.Param("unit")
+	limit, _ := strconv.Atoi(ctx.Param("limit"))
+
+	timeseries, err := h.Service.GetAnalyticsTimeseries(ctx, userID, code, unit, limit)
+	if err != nil {
+		return nil, err
+	}
+	return timeseries, nil
+}
+
 func serviceListOptions(ctx *gofr.Context) model.URLListOptions {
 	page, _ := strconv.Atoi(ctx.Param("page"))
 	limit, _ := strconv.Atoi(ctx.Param("limit"))

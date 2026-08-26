@@ -13,15 +13,14 @@ A production-ready, feature-rich URL shortener backend service built with the [G
 - **Public & Private Visibility**: Public links redirect any visitor; private links restrict redirection strictly to the link owner via JWT.
 - **URL Management**: Endpoints to create, retrieve details, update target URLs or settings, delete links, and list owned URLs with pagination and sorting.
 
-### 2. Link Analytics & Click Tracking
+### 2. Link Analytics & Tracking
 - **Granular Click Logging**: Logs every redirection event with timestamp, short code, and target URL ID.
 - **Total vs Unique Clicks**: Tracks total redirects (`total_clicks`) alongside distinct unique visitors (`unique_clicks`) based on IP history per link.
-- **User-Agent & Device Classification**: Automatically detects and categorizes:
-  - **Browser**: Chrome, Safari, Firefox, Edge, Opera, Other.
-  - **OS**: Windows, macOS, Linux, iOS, Android, Unknown.
-  - **Device Type**: Desktop, Mobile, Tablet.
+- **User-Agent & Device Classification**: Automatically detects and categorizes Browser, OS, and Device Type (Desktop, Mobile, Tablet).
 - **Client IP & Proxy Resolution**: Extracts real client IP addresses through proxy headers (`X-Forwarded-For`, `X-Real-IP`).
 - **Referrer & Geo Tracking**: Captures HTTP `Referer` traffic sources and resolves IP addresses to country codes.
+- **Analytics Summary API**: `GET /urls/{short_code}/analytics` provides link owners with top rankings for Browsers, OS, Devices, Countries, and Referrers.
+- **Timeseries Aggregation API**: `GET /urls/{short_code}/analytics/timeseries` aggregates click volume over customizable intervals (`hour` or `day`).
 
 ### 3. User Accounts
 - **Registration & Security**: Account creation with unique username and email validation, securing passwords with `bcrypt`.

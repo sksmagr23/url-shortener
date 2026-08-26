@@ -43,6 +43,8 @@ type URLService interface {
 	Update(ctx *gofr.Context, userID, code string, input URLUpdateInput) (*model.URL, error)
 	Delete(ctx *gofr.Context, userID, code string) error
 	GetRedirectByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error)
+	GetAnalyticsSummary(ctx *gofr.Context, userID, code string) (*model.AnalyticsSummaryResponse, error)
+	GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error)
 }
 
 type URLCreateInput struct {
@@ -377,4 +379,58 @@ func totalPages(total int64, limit int) int {
 	}
 
 	return int((total + int64(limit) - 1) / int64(limit))
+}
+
+func (s *URLServiceImpl) GetAnalyticsSummary(ctx *gofr.Context, userID, code string) (*model.AnalyticsSummaryResponse, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
+
+	url, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	browsers, _ := s.AnalyticsStore.GetFieldBreakdown(ctx, code, "browser", 10)
+	osList, _ := s.AnalyticsStore.GetFieldBreakdown(ctx, code, "os", 10)
+	devices, _ := s.AnalyticsStore.GetFieldBreakdown(ctx, code, "device_type", 10)
+	countries, _ := s.AnalyticsStore.GetFieldBreakdown(ctx, code, "country", 10)
+	referrers, _ := s.AnalyticsStore.GetFieldBreakdown(ctx, code, "referrer", 10)
+
+	return &model.AnalyticsSummaryResponse{
+		ShortCode:    code,
+		TotalClicks:  url.TotalClicks,
+		UniqueClicks: url.UniqueClicks,
+		Browsers:     browsers,
+		OS:           osList,
+		Devices:      devices,
+		Countries:    countries,
+		Referrers:    referrers,
+	}, nil
+}
+
+func (s *URLServiceImpl) GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
+
+	_, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	if unit != "hour" && unit != "day" {
+		unit = "day"
+	}
+
+	ts, err := s.AnalyticsStore.GetTimeseries(ctx, code, unit, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.AnalyticsTimeseriesResponse{
+		ShortCode:  code,
+		Unit:       unit,
+		Timeseries: ts,
+	}, nil
 }

@@ -78,6 +78,22 @@ func (m *MockURLService) GetRedirectByShortCode(ctx *gofr.Context, userID, code 
 	return args.Get(0).(*model.URL), args.Error(1)
 }
 
+func (m *MockURLService) GetAnalyticsSummary(ctx *gofr.Context, userID, code string) (*model.AnalyticsSummaryResponse, error) {
+	args := m.Called(ctx, userID, code)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.AnalyticsSummaryResponse), args.Error(1)
+}
+
+func (m *MockURLService) GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error) {
+	args := m.Called(ctx, userID, code, unit, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.AnalyticsTimeseriesResponse), args.Error(1)
+}
+
 func TestURLCreateHandler(t *testing.T) {
 	tests := []struct {
 		name           string

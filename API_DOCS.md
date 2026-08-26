@@ -37,6 +37,8 @@ Private short links (`"public": false`) also require the owner's Bearer JWT toke
 | **URLs** | `GET` | `/urls/{short_code}` | Get URL details by short code | ✅ Yes |
 | **URLs** | `PUT` | `/urls/{short_code}` | Update URL target, domain, or expiry | ✅ Yes |
 | **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✅ Yes |
+| **Analytics** | `GET` | `/urls/{short_code}/analytics` | Detailed click summary breakdown | ✅ Yes |
+| **Analytics** | `GET` | `/urls/{short_code}/analytics/timeseries` | Timeseries click aggregation | ✅ Yes |
 | **Redirection** | `GET` | `/{short_code}` | Redirect to original target URL | ⚠️ Public / Owner |
 
 ---
@@ -427,3 +429,73 @@ Redirects callers to the original target URL.
 - **Errors**:
   - `401 Unauthorized`: Private URL accessed without valid owner Bearer JWT token.
   - `404 Not Found`: URL does not exist or link has expired (`expires_at < current_time`).
+
+---
+
+## 6. Analytics & Reporting Endpoints
+
+### `GET /urls/{short_code}/analytics`
+Retrieves a detailed analytics summary for an owned URL, including total and unique click counts and breakdown rankings by Browser, OS, Device Type, Country, and Top Referrers.
+
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": {
+      "short_code": "my-code",
+      "total_clicks": 42,
+      "unique_clicks": 35,
+      "browsers": [
+        {"name": "Chrome", "count": 25},
+        {"name": "Safari", "count": 10}
+      ],
+      "os": [
+        {"name": "Windows", "count": 20},
+        {"name": "iOS", "count": 10}
+      ],
+      "devices": [
+        {"name": "Desktop", "count": 25},
+        {"name": "Mobile", "count": 10}
+      ],
+      "countries": [
+        {"name": "US", "count": 20},
+        {"name": "IN", "count": 10}
+      ],
+      "referrers": [
+        {"name": "https://google.com", "count": 15},
+        {"name": "direct", "count": 10}
+      ]
+    }
+  }
+  ```
+- **Errors**: `401 Unauthorized`, `404 Not Found`.
+
+---
+
+### `GET /urls/{short_code}/analytics/timeseries`
+Retrieves timeseries click volume for an owned URL aggregated by hour or day.
+
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+- **Query Parameters**:
+  - `unit` *(string, Optional, default: `"day"`)*: Aggregation interval (`"hour"` or `"day"`).
+  - `limit` *(integer, Optional, default: `30`)*: Maximum number of timeseries data points.
+
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": {
+      "short_code": "my-code",
+      "unit": "day",
+      "timeseries": [
+        {"timestamp": "2026-08-25", "clicks": 20},
+        {"timestamp": "2026-08-26", "clicks": 22}
+      ]
+    }
+  }
+  ```
+- **Errors**: `400 Bad Request`, `401 Unauthorized`, `404 Not Found`.

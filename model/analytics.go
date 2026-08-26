@@ -15,3 +15,30 @@ type ClickEvent struct {
 	Country    string    `bson:"country"       json:"country"`
 	Referrer   string    `bson:"referrer"      json:"referrer"`
 }
+
+type BreakdownItem struct {
+	Name  string `json:"name"  bson:"_id"`
+	Count int64  `json:"count" bson:"count"`
+}
+
+type AnalyticsSummaryResponse struct {
+	ShortCode    string          `json:"short_code"`
+	TotalClicks  int64           `json:"total_clicks"`
+	UniqueClicks int64           `json:"unique_clicks"`
+	Browsers     []BreakdownItem `json:"browsers"`
+	OS           []BreakdownItem `json:"os"`
+	Devices      []BreakdownItem `json:"devices"`
+	Countries    []BreakdownItem `json:"countries"`
+	Referrers    []BreakdownItem `json:"referrers"`
+}
+
+type TimeseriesPoint struct {
+	Timestamp string `json:"timestamp" bson:"_id"`
+	Clicks    int64  `json:"clicks"    bson:"count"`
+}
+
+type AnalyticsTimeseriesResponse struct {
+	ShortCode  string            `json:"short_code"`
+	Unit       string            `json:"unit"`
+	Timeseries []TimeseriesPoint `json:"timeseries"`
+}

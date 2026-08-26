@@ -571,3 +571,95 @@ func TestURLServiceUpdateInvalidatesCache(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestURLServiceGetAnalyticsSummary(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
+
+	// Expect FindByShortCodeAndUserID
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "summary-code", "user_id": "user-1"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = "summary-code"
+			u.UserID = "user-1"
+			u.TotalClicks = 25
+			u.UniqueClicks = 10
+		}
+		return nil
+	})
+
+	// Expect 5 breakdown Find calls (browser, os, device_type, country, referrer)
+	mocks.Mongo.EXPECT().Find(
+		gomock.Any(),
+		"click_events",
+		bson.M{"short_code": "summary-code"},
+		gomock.Any(),
+	).Times(5).Return(nil)
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}
+
+	res, err := urlService.GetAnalyticsSummary(ctx, "user-1", "summary-code")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, "summary-code", res.ShortCode)
+	assert.Equal(t, int64(25), res.TotalClicks)
+	assert.Equal(t, int64(10), res.UniqueClicks)
+}
+
+func TestURLServiceGetAnalyticsTimeseries(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
+
+	// Expect FindByShortCodeAndUserID
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "ts-code", "user_id": "user-1"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = "ts-code"
+			u.UserID = "user-1"
+		}
+		return nil
+	})
+
+	// Expect 1 timeseries Find call
+	mocks.Mongo.EXPECT().Find(
+		gomock.Any(),
+		"click_events",
+		bson.M{"short_code": "ts-code"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		events, ok := res.(*[]model.ClickEvent)
+		if ok {
+			*events = []model.ClickEvent{{Timestamp: time.Now().UTC()}}
+		}
+		return nil
+	})
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}
+
+	res, err := urlService.GetAnalyticsTimeseries(ctx, "user-1", "ts-code", "day", 30)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, "ts-code", res.ShortCode)
+	assert.Equal(t, "day", res.Unit)
+	assert.Len(t, res.Timeseries, 1)
+}
