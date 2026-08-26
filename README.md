@@ -34,7 +34,7 @@ A production-ready, feature-rich URL shortener backend service built with the [G
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 main.go                 # Application entry point & route registrations
@@ -49,7 +49,7 @@ configs/                # Configuration directory (.env file)
 
 ---
 
-## 🏛️ Architecture
+## Architecture
 
 The application follows GoFr's recommended **3-Layer Clean Architecture**:
 
@@ -86,135 +86,20 @@ The server will start listening at `http://localhost:8000`. Swagger documentatio
 
 ---
 
-## 🔐 Authentication
+## API Documentation
 
-Protected endpoints require a Bearer token in the `Authorization` header:
+Detailed RESTful API specifications, headers, request/response schemas, and parameter references are documented separately:
 
-```http
-Authorization: Bearer <jwt_token>
+👉 **[View Complete API Documentation (API_DOCS.md)](API_DOCS.md)**
+
+Alternatively, when the application is running, you can access the interactive Swagger UI at:
+```text
+http://localhost:8000/.well-known/swagger
 ```
 
-Private short links (`"public": false`) require the owner's JWT token when accessing the redirection endpoint `GET /{short_code}`.
-
 ---
 
-## 📖 API Documentation
-
-### 1. Health Endpoint
-
-#### `GET /health`
-Returns system status and datasource health (e.g., MongoDB connectivity).
-- **Authentication**: None
-
----
-
-### 2. User Management Endpoints
-
-#### `POST /users/register`
-Registers a new user account.
-- **Authentication**: None
-- **Request Body**:
-  - `username` *(string, **Required**)*: Unique username.
-  - `email` *(string, **Required**)*: Valid email address.
-  - `password` *(string, **Required**)*: User account password.
-
-#### `POST /users/login`
-Authenticates a user and returns a JWT token.
-- **Authentication**: None
-- **Request Body**:
-  - `identifier` *(string, **Required**)*: Registered email or username.
-  - `password` *(string, **Required**)*: Account password.
-
-#### `GET /users/profile`
-Retrieves profile details for the authenticated user.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-
-#### `PUT /users/profile`
-Updates profile information for the authenticated user.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Request Body** *(All fields optional)*:
-  - `username` *(string, Optional)*: New username.
-  - `email` *(string, Optional)*: New email address.
-  - `password` *(string, Optional)*: New password.
-
----
-
-### 3. API Key Management Endpoints
-
-#### `POST /users/api-key`
-Generates a new developer API key.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-
-#### `GET /users/api-keys`
-Lists all active API keys owned by the user.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-
-#### `DELETE /users/api-keys/{api_key}`
-Revokes an active API key.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Path Parameters**:
-  - `api_key` *(string, **Required**)*: The API key string to revoke.
-
----
-
-### 4. URL Management Endpoints
-
-#### `POST /urls`
-Creates a shortened URL.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Request Body**:
-  - `original_url` *(string, **Required**)*: Destination HTTP/HTTPS target URL.
-  - `custom_code` *(string, Optional)*: Desired custom alias (3–64 chars). Auto-generated if omitted.
-  - `public` *(boolean, Optional, default: `false`)*: Link visibility (`true` for public, `false` for owner-only).
-  - `custom_domain` *(string, Optional)*: Custom domain alias (e.g. `sksm.tech` or `short.example.com`).
-  - `expires_at` *(string RFC3339 date-time, Optional)*: UTC expiration timestamp.
-
-#### `GET /urls`
-Lists all URLs owned by the authenticated user with pagination and sorting.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Query Parameters**:
-  - `page` *(integer, Optional, default: `1`)*: Page number.
-  - `limit` *(integer, Optional, default: `10`, max: `100`)*: Items per page.
-  - `sort` *(string, Optional, default: `"created_at"`)*: Sort field (`"created_at"`, `"short_code"`, `"total_clicks"`).
-  - `order` *(string, Optional, default: `"desc"`)*: Sort direction (`"asc"` or `"desc"`).
-
-#### `GET /urls/{short_code}`
-Retrieves URL details for an owned link.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Path Parameters**:
-  - `short_code` *(string, **Required**)*: Short code identifier.
-
-#### `PUT /urls/{short_code}`
-Updates configuration for an owned URL.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Path Parameters**:
-  - `short_code` *(string, **Required**)*: Short code identifier.
-- **Request Body** *(All fields optional)*:
-  - `original_url` *(string, Optional)*: Updated target URL.
-  - `public` *(boolean, Optional)*: Update link visibility.
-  - `custom_domain` *(string, Optional)*: Update custom domain alias.
-  - `clear_custom_domain` *(boolean, Optional, default: `false`)*: Set `true` to remove custom domain.
-  - `expires_at` *(string RFC3339 date-time, Optional)*: Update expiration timestamp.
-  - `clear_expiry` *(boolean, Optional, default: `false`)*: Set `true` to remove link expiration date.
-
-#### `DELETE /urls/{short_code}`
-Deletes an owned URL record.
-- **Authentication**: Required (`Bearer <jwt_token>`)
-- **Path Parameters**:
-  - `short_code` *(string, **Required**)*: Short code identifier.
-
----
-
-### 5. Redirection Endpoint
-
-#### `GET /{short_code}`
-Redirects callers to the original target URL and increments click count.
-- **Authentication**: None for public links; Required (`Bearer <jwt_token>`) for private links.
-- **Response**: `HTTP 302 Found` with `Location` header pointing to `original_url`.
-
----
-
-## 🗄️ Database Schemas (MongoDB)
+## Database Schemas (MongoDB)
 
 ### `users` Collection
 ```json
