@@ -50,10 +50,15 @@ func main() {
 	app.GET("/users/profile", userHandler.GetProfile)
 	app.PUT("/users/profile", userHandler.UpdateProfile)
 	app.POST("/users/api-key", userHandler.GenerateAPIKey)
+	app.GET("/users/api-keys", userHandler.ListAPIKeys)
+	app.DELETE("/users/api-keys/{api_key}", userHandler.RevokeAPIKey)
 
 	// URL endpoints
 	app.POST("/urls", urlHandler.Create)
+	app.GET("/urls", urlHandler.List)
 	app.GET("/urls/{short_code}", urlHandler.Get)
+	app.PUT("/urls/{short_code}", urlHandler.Update)
+	app.DELETE("/urls/{short_code}", urlHandler.Delete)
 	app.GET("/{short_code}", urlHandler.Redirect)
 
 	app.Run()

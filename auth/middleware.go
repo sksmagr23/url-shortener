@@ -9,13 +9,24 @@ import (
 func JWTMiddleware(secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tokenString := bearerToken(r.Header.Get("Authorization"))
+
 			if !requiresJWT(r) {
+				if tokenString != "" {
+					claims, err := ValidateToken(tokenString, secret)
+					if err != nil {
+						writeUnauthorized(w, "invalid bearer token")
+
+						return
+					}
+
+					r = r.WithContext(ContextWithUserID(r.Context(), claims.UserID))
+				}
 				next.ServeHTTP(w, r)
 
 				return
 			}
 
-			tokenString := bearerToken(r.Header.Get("Authorization"))
 			if tokenString == "" {
 				writeUnauthorized(w, "missing bearer token")
 
@@ -44,7 +55,8 @@ func requiresJWT(r *http.Request) bool {
 
 	return strings.HasPrefix(path, "/urls") ||
 		path == "/users/profile" ||
-		path == "/users/api-key"
+		path == "/users/api-key" ||
+		strings.HasPrefix(path, "/users/api-keys")
 }
 
 func bearerToken(header string) string {

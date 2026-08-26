@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,8 +33,8 @@ type MockURLService struct {
 	mock.Mock
 }
 
-func (m *MockURLService) Create(ctx *gofr.Context, userID, original string) (*model.URL, error) {
-	args := m.Called(ctx, userID, original)
+func (m *MockURLService) Create(ctx *gofr.Context, userID string, input service.URLCreateInput) (*model.URL, error) {
+	args := m.Called(ctx, userID, input)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -48,8 +49,29 @@ func (m *MockURLService) GetByShortCode(ctx *gofr.Context, userID, code string) 
 	return args.Get(0).(*model.URL), args.Error(1)
 }
 
-func (m *MockURLService) GetRedirectByShortCode(ctx *gofr.Context, code string) (*model.URL, error) {
-	args := m.Called(ctx, code)
+func (m *MockURLService) List(ctx *gofr.Context, userID string, options model.URLListOptions) (*model.URLListResult, error) {
+	args := m.Called(ctx, userID, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URLListResult), args.Error(1)
+}
+
+func (m *MockURLService) Update(ctx *gofr.Context, userID, code string, input service.URLUpdateInput) (*model.URL, error) {
+	args := m.Called(ctx, userID, code, input)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URL), args.Error(1)
+}
+
+func (m *MockURLService) Delete(ctx *gofr.Context, userID, code string) error {
+	args := m.Called(ctx, userID, code)
+	return args.Error(0)
+}
+
+func (m *MockURLService) GetRedirectByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error) {
+	args := m.Called(ctx, userID, code)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -222,6 +244,88 @@ func TestURLGetHandler(t *testing.T) {
 	}
 }
 
+func TestURLListHandler(t *testing.T) {
+	mockContainer, _ := container.NewMockContainer(t)
+	mockService := &MockURLService{}
+	expected := &model.URLListResult{
+		URLs: []*model.URL{{ID: "url-1", ShortCode: "abc123"}},
+		Pagination: model.Pagination{
+			Page:       2,
+			Limit:      5,
+			Total:      1,
+			TotalPages: 1,
+		},
+	}
+	mockService.On("List", mock.Anything, "user-1", model.URLListOptions{
+		Page:  2,
+		Limit: 5,
+		Sort:  "created_at",
+		Order: "asc",
+	}).Return(expected, nil)
+
+	urlHandler := &handler.URLHandler{Service: mockService}
+	req := httptest.NewRequest(http.MethodGet, "/api/urls?page=2&limit=5&sort=created_at&order=asc", nil)
+	request := gofrHttp.NewRequest(req)
+
+	result, err := urlHandler.List(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Request:   request,
+		Container: mockContainer,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+	mockService.AssertExpectations(t)
+}
+
+func TestURLUpdateHandler(t *testing.T) {
+	mockContainer, _ := container.NewMockContainer(t)
+	mockService := &MockURLService{}
+	isPublic := false
+	expectedURL := &model.URL{ID: "url-1", ShortCode: "abc123", Public: false}
+	mockService.On("Update", mock.Anything, "user-1", "abc123", mock.MatchedBy(func(input service.URLUpdateInput) bool {
+		return input.Public != nil && *input.Public == isPublic
+	})).Return(expectedURL, nil)
+
+	urlHandler := &handler.URLHandler{Service: mockService}
+	body, _ := json.Marshal(map[string]any{"public": false})
+	req := httptest.NewRequest(http.MethodPut, "/api/urls/abc123", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"short_code": "abc123"})
+	request := gofrHttp.NewRequest(req)
+
+	result, err := urlHandler.Update(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Request:   request,
+		Container: mockContainer,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedURL, result)
+	mockService.AssertExpectations(t)
+}
+
+func TestURLDeleteHandler(t *testing.T) {
+	mockContainer, _ := container.NewMockContainer(t)
+	mockService := &MockURLService{}
+	mockService.On("Delete", mock.Anything, "user-1", "abc123").Return(nil)
+
+	urlHandler := &handler.URLHandler{Service: mockService}
+	req := httptest.NewRequest(http.MethodDelete, "/api/urls/abc123", nil)
+	req = mux.SetURLVars(req, map[string]string{"short_code": "abc123"})
+	request := gofrHttp.NewRequest(req)
+
+	result, err := urlHandler.Delete(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Request:   request,
+		Container: mockContainer,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"message": "URL deleted successfully"}, result)
+	mockService.AssertExpectations(t)
+}
+
 func TestURLRedirectHandler(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -261,7 +365,7 @@ func TestURLRedirectHandler(t *testing.T) {
 
 			mockService := &MockURLService{}
 
-			mockService.On("GetRedirectByShortCode", mock.Anything, mock.Anything).
+			mockService.On("GetRedirectByShortCode", mock.Anything, "", mock.Anything).
 				Return(tt.mockURL, tt.mockError)
 
 			urlHandler := &handler.URLHandler{
@@ -316,6 +420,13 @@ func TestURLServiceIntegration(t *testing.T) {
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
+		gomock.Any(),
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
 		bson.M{"short_code": "test123", "user_id": "user-1"},
 		gomock.Any(),
 	).Return(nil)
@@ -325,7 +436,7 @@ func TestURLServiceIntegration(t *testing.T) {
 		Container: mockContainer,
 	}
 
-	createdURL, err := urlService.Create(ctx, "user-1", "https://example.com/test")
+	createdURL, err := urlService.Create(ctx, "user-1", service.URLCreateInput{Original: "https://example.com/test"})
 	assert.NoError(t, err)
 	assert.NotNil(t, createdURL)
 	assert.Equal(t, "https://example.com/test", createdURL.Original)

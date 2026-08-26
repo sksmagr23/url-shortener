@@ -131,6 +131,42 @@
         }
       }
     },
+    "/users/api-keys": {
+      "get": {
+        "summary": "List API Keys",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "API keys",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/APIKeysResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users/api-keys/{api_key}": {
+      "delete": {
+        "summary": "Revoke API Key",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "API key revoked" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
     "/urls": {
       "post": {
         "summary": "Create Short URL",
@@ -154,6 +190,28 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "get": {
+        "summary": "List User URLs",
+        "description": "List URLs owned by the authenticated user.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "default": "created_at" } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned URLs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UrlListResponse" }
+              }
+            }
+          },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
@@ -183,12 +241,64 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
+      },
+      "put": {
+        "summary": "Update URL",
+        "description": "Update URL settings for an owned URL.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateUrlRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UrlResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "summary": "Delete URL",
+        "description": "Delete an owned URL.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "URL deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
       }
     },
     "/{short_code}": {
       "get": {
         "summary": "Redirect to Original URL",
-        "description": "Public redirect endpoint.",
+        "description": "Redirect endpoint. Public links redirect without authentication; private links require the owner JWT.",
         "parameters": [
           {
             "name": "short_code",
@@ -343,28 +453,86 @@
           }
         }
       },
+      "APIKeysResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "api_keys": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
       "CreateUrlRequest": {
         "type": "object",
         "required": ["original_url"],
         "properties": {
-          "original_url": { "type": "string", "format": "uri" }
+          "original_url": { "type": "string", "format": "uri" },
+          "custom_code": { "type": "string", "example": "my-code" },
+          "public": { "type": "boolean", "default": false },
+          "custom_domain": { "type": "string", "format": "uri" },
+          "expires_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UpdateUrlRequest": {
+        "type": "object",
+        "properties": {
+          "original_url": { "type": "string", "format": "uri" },
+          "public": { "type": "boolean" },
+          "custom_domain": { "type": "string", "format": "uri" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "clear_expiry": { "type": "boolean", "default": false }
         }
       },
       "UrlResponse": {
         "type": "object",
         "properties": {
           "data": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
-              "original_url": { "type": "string", "format": "uri" },
-              "short_code": { "type": "string", "example": "abc123" },
-              "user_id": { "type": "string" },
-              "short_url": { "type": "string", "format": "uri" },
-              "created_at": { "type": "string", "format": "date-time" }
-            }
+            "$ref": "#/components/schemas/Url"
           }
         }
+      },
+      "UrlListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Url" }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "Url": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
+          "original_url": { "type": "string", "format": "uri" },
+          "short_code": { "type": "string", "example": "abc123" },
+          "user_id": { "type": "string" },
+          "public": { "type": "boolean" },
+          "custom_domain": { "type": "string", "format": "uri" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "total_clicks": { "type": "integer", "format": "int64" },
+          "unique_clicks": { "type": "integer", "format": "int64" },
+          "short_url": { "type": "string", "format": "uri" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer", "format": "int64" },
+          "total_pages": { "type": "integer" }
+          }
       },
       "ErrorResponse": {
         "type": "object",

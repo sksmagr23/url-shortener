@@ -93,6 +93,13 @@ func TestURLServiceCreate(t *testing.T) {
 			urlService := service.NewURLService(urlStore, tt.host)
 
 			if !tt.expectError {
+				mocks.Mongo.EXPECT().FindOne(
+					gomock.Any(),
+					"urls",
+					gomock.Any(),
+					gomock.Any(),
+				).Return(mongo.ErrNoDocuments)
+
 				mocks.Mongo.EXPECT().InsertOne(
 					gomock.Any(),
 					"urls",
@@ -105,7 +112,7 @@ func TestURLServiceCreate(t *testing.T) {
 				Container: mockContainer,
 			}
 
-			result, err := urlService.Create(ctx, "user-1", tt.originalURL)
+			result, err := urlService.Create(ctx, "user-1", service.URLCreateInput{Original: tt.originalURL})
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -231,13 +238,19 @@ func TestURLServiceCreateWithDatabaseError(t *testing.T) {
 		"urls",
 		gomock.Any(),
 	).Return("", errors.New("database connection failed"))
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		gomock.Any(),
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
 
 	ctx := &gofr.Context{
 		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
 		Container: mockContainer,
 	}
 
-	result, err := urlService.Create(ctx, "user-1", "https://example.com/test")
+	result, err := urlService.Create(ctx, "user-1", service.URLCreateInput{Original: "https://example.com/test"})
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "database connection failed")
@@ -264,4 +277,81 @@ func TestURLServiceGetByShortCodeWithDatabaseError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "database connection failed")
+}
+
+func TestURLServiceCreateWithCustomCodeAndPublicFlag(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code"},
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		"urls",
+		gomock.Any(),
+	).Return("url-1", nil)
+
+	result, err := urlService.Create(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}, "user-1", service.URLCreateInput{
+		Original:   "https://example.com/test",
+		CustomCode: "my-code",
+		Public:     true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "my-code", result.ShortCode)
+	assert.True(t, result.Public)
+	assert.Equal(t, "http://localhost:8000/my-code", result.ShortURL)
+}
+
+func TestURLServiceCreateRejectsDuplicateCustomCode(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code"},
+		gomock.Any(),
+	).Return(nil)
+
+	result, err := urlService.Create(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}, "user-1", service.URLCreateInput{
+		Original:   "https://example.com/test",
+		CustomCode: "my-code",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+}
+
+func TestURLServicePrivateRedirectRequiresOwner(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "private-code"},
+		gomock.Any(),
+	).Return(nil)
+
+	result, err := urlService.GetRedirectByShortCode(&gofr.Context{
+		Context:   context.Background(),
+		Container: mockContainer,
+	}, "other-user", "private-code")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
 }

@@ -79,3 +79,10 @@ func (s *UserStore) AddAPIKey(ctx *gofr.Context, id, apiKey string) error {
 		"$set":  bson.M{"updated_at": time.Now().UTC()},
 	})
 }
+
+func (s *UserStore) RemoveAPIKey(ctx *gofr.Context, id, apiKey string) error {
+	return ctx.Mongo.UpdateOne(ctx, usersCollection, bson.M{"_id": id}, bson.M{
+		"$pull": bson.M{"api_keys": apiKey},
+		"$set":  bson.M{"updated_at": time.Now().UTC()},
+	})
+}

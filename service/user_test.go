@@ -84,6 +84,17 @@ func (f *fakeUserRepository) AddAPIKey(_ *gofr.Context, _ string, apiKey string)
 	return nil
 }
 
+func (f *fakeUserRepository) RemoveAPIKey(_ *gofr.Context, _ string, apiKey string) error {
+	if f.apiKeyErr != nil {
+		return f.apiKeyErr
+	}
+	if f.apiKey == apiKey {
+		f.apiKey = ""
+	}
+
+	return nil
+}
+
 func TestUserServiceRegister(t *testing.T) {
 	repo := &fakeUserRepository{findErr: mongo.ErrNoDocuments}
 	userService := service.NewUserService(repo, "test-secret")

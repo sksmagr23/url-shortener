@@ -5,6 +5,7 @@ go 1.24.1
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang/mock v1.6.0
+	github.com/gorilla/mux v1.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.10.0
 	go.mongodb.org/mongo-driver v1.17.4
@@ -46,7 +47,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.2 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect

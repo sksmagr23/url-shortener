@@ -100,3 +100,31 @@ func (h *UserHandler) GenerateAPIKey(ctx *gofr.Context) (interface{}, error) {
 
 	return map[string]string{"api_key": apiKey}, nil
 }
+
+func (h *UserHandler) ListAPIKeys(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
+	apiKeys, err := h.Service.ListAPIKeys(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string][]string{"api_keys": apiKeys}, nil
+}
+
+func (h *UserHandler) RevokeAPIKey(ctx *gofr.Context) (interface{}, error) {
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+
+	apiKey := ctx.PathParam("api_key")
+	if err := h.Service.RevokeAPIKey(ctx, userID, apiKey); err != nil {
+		return nil, err
+	}
+
+	return map[string]string{"message": "API key revoked successfully"}, nil
+}

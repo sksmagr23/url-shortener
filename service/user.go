@@ -24,6 +24,7 @@ type UserRepository interface {
 	FindByID(ctx *gofr.Context, id string) (*model.User, error)
 	UpdateProfile(ctx *gofr.Context, id string, update model.UserProfileUpdate) (*model.User, error)
 	AddAPIKey(ctx *gofr.Context, id, apiKey string) error
+	RemoveAPIKey(ctx *gofr.Context, id, apiKey string) error
 }
 
 type UserService interface {
@@ -32,6 +33,8 @@ type UserService interface {
 	GetProfile(ctx *gofr.Context, userID string) (*model.User, error)
 	UpdateProfile(ctx *gofr.Context, userID string, input UpdateProfileInput) (*model.User, error)
 	GenerateAPIKey(ctx *gofr.Context, userID string) (string, error)
+	ListAPIKeys(ctx *gofr.Context, userID string) ([]string, error)
+	RevokeAPIKey(ctx *gofr.Context, userID, apiKey string) error
 }
 
 type UserServiceImpl struct {
@@ -177,6 +180,26 @@ func (s *UserServiceImpl) GenerateAPIKey(ctx *gofr.Context, userID string) (stri
 	}
 
 	return apiKey, nil
+}
+
+func (s *UserServiceImpl) ListAPIKeys(ctx *gofr.Context, userID string) ([]string, error) {
+	user, err := s.GetProfile(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return user.APIKeys, nil
+}
+
+func (s *UserServiceImpl) RevokeAPIKey(ctx *gofr.Context, userID, apiKey string) error {
+	if userID == "" {
+		return unauthorized("missing authenticated user")
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return badRequest("api key is required")
+	}
+
+	return s.Store.RemoveAPIKey(ctx, userID, apiKey)
 }
 
 func generateAPIKey() (string, error) {
