@@ -460,6 +460,42 @@
         "responses": {
           "200": {
             "description": "Timeseries analytics retrieved successfully"
+          }
+        }
+      }
+    },      
+    "/urls/{short_code}/qr": {
+      "get": {
+        "tags": ["URLs"],
+        "summary": "Generate QR Code",
+        "description": "Generates a dynamic QR code for any shortened link as raw PNG or base64 JSON.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "description": "Dimensions in pixels (default: 256, max: 1024)",
+            "schema": { "type": "integer", "default": 256 }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "Output format: 'png' or 'json' (default: 'png')",
+            "schema": { "type": "string", "default": "png" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR Code image or JSON payload retrieved successfully"
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }

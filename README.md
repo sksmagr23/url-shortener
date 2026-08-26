@@ -11,6 +11,7 @@ A production-ready, high-performance URL Management & Link Analytics backend ser
 - **Custom Branded Domains**: Support custom short domains (e.g. `me.tech/my-code` or `short.brand.com/my-code`) with domain normalization and HTTP/HTTPS protocol formatting.
 - **Link Expiration**: Set UTC expiration timestamps (`expires_at`) for temporary links. Expired links reject redirects with HTTP 404. Expiry dates can be updated or cleared.
 - **Public & Private Visibility**: Public links redirect any visitor; private links restrict redirection strictly to the link owner via JWT.
+- **Dynamic QR Code Generation**: Allow generating high-resolution PNG image bytes of short urls for instant UI embedding or mobile scanning.
 - **URL Management**: Endpoints to create, retrieve details, update target URLs or settings, delete links, and list owned URLs with pagination and sorting.
 
 ### 2. Link Analytics & Tracking

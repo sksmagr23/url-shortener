@@ -60,6 +60,7 @@ All endpoints enforce sliding-window rate limiting (100 requests per minute per 
 | **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✅ Yes |
 | **Analytics** | `GET` | `/urls/{short_code}/analytics` | Detailed click summary breakdown | ✅ Yes |
 | **Analytics** | `GET` | `/urls/{short_code}/analytics/timeseries` | Timeseries click aggregation | ✅ Yes |
+| **QR Code** | `GET` | `/urls/{short_code}/qr` | Generate dynamic QR code image or base64 JSON | ⚠️ Public / Owner |
 | **Redirection** | `GET` | `/{short_code}` | Redirect to original target URL | ⚠️ Public / Owner |
 
 ---
@@ -516,6 +517,36 @@ Retrieves timeseries click volume for an owned URL aggregated by hour or day.
         {"timestamp": "2026-08-25", "clicks": 20},
         {"timestamp": "2026-08-26", "clicks": 22}
       ]
+    }
+  }
+  ```
+- **Errors**: `400 Bad Request`, `401 Unauthorized`, `404 Not Found`.
+
+---
+
+## 7. Dynamic QR Code Generation
+
+### `GET /urls/{short_code}/qr`
+Generates a dynamic QR code for any shortened link. By default, returns raw PNG image bytes (`Content-Type: image/png`) ready for direct `<img src="..." />` embedding or file downloads.
+
+- **Authentication**: None for public links; Owner authentication (`Bearer <jwt_token>` or `X-API-Key`) required for private links.
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+- **Query Parameters**:
+  - `size` *(integer, Optional, default: `256`, max: `1024`)*: QR code image dimensions in pixels.
+  - `format` *(string, Optional, default: `"png"`)*: Set `format=json` to receive base64 encoded JSON output instead of raw binary PNG.
+
+- **Response `200 OK` (Default PNG Image)**:
+  - **Headers**: `Content-Type: image/png`
+  - **Body**: Binary PNG Image Bytes
+
+- **Response `200 OK` (when `format=json`)**:
+  ```json
+  {
+    "data": {
+      "short_code": "my-code",
+      "short_url": "https://sksm.tech/my-code",
+      "qr_code_base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
     }
   }
   ```

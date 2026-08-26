@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"math/rand"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/skip2/go-qrcode"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"
 	gofrHTTP "gofr.dev/pkg/gofr/http"
@@ -37,6 +39,13 @@ func GenerateShortCode(length int) string {
 	return string(b)
 }
 
+type QRCodeResponse struct {
+	ShortCode    string `json:"short_code"`
+	ShortURL     string `json:"short_url"`
+	QRCodeBase64 string `json:"qr_code_base64"`
+	PNGBytes     []byte `json:"-"`
+}
+
 type URLService interface {
 	Create(ctx *gofr.Context, userID string, input URLCreateInput) (*model.URL, error)
 	GetByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error)
@@ -46,6 +55,7 @@ type URLService interface {
 	GetRedirectByShortCode(ctx *gofr.Context, userID, code string) (*model.URL, error)
 	GetAnalyticsSummary(ctx *gofr.Context, userID, code string) (*model.AnalyticsSummaryResponse, error)
 	GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error)
+	GetQRCode(ctx *gofr.Context, userID, code string, size int) (*QRCodeResponse, error)
 }
 
 type URLCreateInput struct {
@@ -438,5 +448,38 @@ func (s *URLServiceImpl) GetAnalyticsTimeseries(ctx *gofr.Context, userID, code,
 		ShortCode:  code,
 		Unit:       unit,
 		Timeseries: ts,
+	}, nil
+}
+
+func (s *URLServiceImpl) GetQRCode(ctx *gofr.Context, userID, code string, size int) (*QRCodeResponse, error) {
+	if size <= 0 {
+		size = 256
+	}
+	if size > 1024 {
+		size = 1024
+	}
+
+	url, err := s.Store.FindPublicByShortCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	if !url.Public && url.UserID != userID {
+		return nil, unauthorized("private URL requires owner authentication")
+	}
+
+	shortURL := s.shortURL(url)
+	pngBytes, err := qrcode.Encode(shortURL, qrcode.Medium, size)
+	if err != nil {
+		return nil, badRequest("failed to generate QR code")
+	}
+
+	base64Str := "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngBytes)
+
+	return &QRCodeResponse{
+		ShortCode:    code,
+		ShortURL:     shortURL,
+		QRCodeBase64: base64Str,
+		PNGBytes:     pngBytes,
 	}, nil
 }

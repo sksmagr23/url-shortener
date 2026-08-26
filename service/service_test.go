@@ -663,3 +663,37 @@ func TestURLServiceGetAnalyticsTimeseries(t *testing.T) {
 	assert.Equal(t, "day", res.Unit)
 	assert.Len(t, res.Timeseries, 1)
 }
+
+func TestURLServiceGetQRCode(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	analyticsStore := store.NewAnalyticsStore()
+	urlService := service.NewURLService(urlStore, analyticsStore, nil, "http://localhost:8000/")
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "qr-code"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = "qr-code"
+			u.Public = true
+			u.Original = "https://gofr.dev"
+		}
+		return nil
+	})
+
+	ctx := &gofr.Context{
+		Context:   context.Background(),
+		Container: mockContainer,
+	}
+
+	qrResp, err := urlService.GetQRCode(ctx, "", "qr-code", 256)
+	assert.NoError(t, err)
+	assert.NotNil(t, qrResp)
+	assert.Equal(t, "qr-code", qrResp.ShortCode)
+	assert.True(t, len(qrResp.PNGBytes) > 0)
+	assert.True(t, len(qrResp.QRCodeBase64) > 0)
+}

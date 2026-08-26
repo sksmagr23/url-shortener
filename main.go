@@ -61,6 +61,7 @@ func main() {
 	// URL endpoints
 	app.POST("/urls", urlHandler.Create)
 	app.GET("/urls", urlHandler.List)
+	app.GET("/urls/{short_code}/qr", urlHandler.GetQRCode)
 	app.GET("/urls/{short_code}", urlHandler.Get)
 	app.GET("/urls/{short_code}/analytics", urlHandler.GetAnalyticsSummary)
 	app.GET("/urls/{short_code}/analytics/timeseries", urlHandler.GetAnalyticsTimeseries)

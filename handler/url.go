@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"gofr.dev/pkg/gofr"
@@ -170,6 +171,28 @@ func (h *URLHandler) GetAnalyticsTimeseries(ctx *gofr.Context) (interface{}, err
 		return nil, err
 	}
 	return timeseries, nil
+}
+
+// GET /urls/{short_code}/qr
+func (h *URLHandler) GetQRCode(ctx *gofr.Context) (interface{}, error) {
+	code := ctx.PathParam("short_code")
+	userID, _ := auth.UserIDFromContext(ctx.Context)
+	size, _ := strconv.Atoi(ctx.Param("size"))
+	format := strings.ToLower(ctx.Param("format"))
+
+	qrResp, err := h.Service.GetQRCode(ctx, userID, code, size)
+	if err != nil {
+		return nil, err
+	}
+
+	if format == "json" {
+		return qrResp, nil
+	}
+
+	return response.File{
+		Content:     qrResp.PNGBytes,
+		ContentType: "image/png",
+	}, nil
 }
 
 func serviceListOptions(ctx *gofr.Context) model.URLListOptions {

@@ -94,6 +94,14 @@ func (m *MockURLService) GetAnalyticsTimeseries(ctx *gofr.Context, userID, code,
 	return args.Get(0).(*model.AnalyticsTimeseriesResponse), args.Error(1)
 }
 
+func (m *MockURLService) GetQRCode(ctx *gofr.Context, userID, code string, size int) (*service.QRCodeResponse, error) {
+	args := m.Called(ctx, userID, code, size)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*service.QRCodeResponse), args.Error(1)
+}
+
 func TestURLCreateHandler(t *testing.T) {
 	tests := []struct {
 		name           string
