@@ -355,3 +355,76 @@ func TestURLServicePrivateRedirectRequiresOwner(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Error(t, err)
 }
+
+func TestURLServiceCreateWithCustomDomain(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code"},
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		"urls",
+		gomock.Any(),
+	).Return("url-1", nil)
+
+	result, err := urlService.Create(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}, "user-1", service.URLCreateInput{
+		Original:     "https://example.com/test",
+		CustomCode:   "my-code",
+		CustomDomain: "sksm.tech",
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "my-code", result.ShortCode)
+	assert.Equal(t, "sksm.tech", result.CustomDomain)
+	assert.Equal(t, "https://sksm.tech/my-code", result.ShortURL)
+}
+
+func TestURLServiceUpdateCustomDomain(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlService := service.NewURLService(urlStore, "http://localhost:8000/")
+
+	customDomain := "custom.example.com"
+
+	mocks.Mongo.EXPECT().UpdateOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).Return(nil)
+
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = "my-code"
+			u.CustomDomain = "custom.example.com"
+		}
+		return nil
+	})
+
+	result, err := urlService.Update(&gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}, "user-1", "my-code", service.URLUpdateInput{
+		CustomDomain: &customDomain,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "custom.example.com", result.CustomDomain)
+	assert.Equal(t, "https://custom.example.com/my-code", result.ShortURL)
+}

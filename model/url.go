@@ -18,11 +18,12 @@ type URL struct {
 }
 
 type URLUpdate struct {
-	Original     string
-	Public       *bool
-	CustomDomain string
-	ExpiresAt    *time.Time
-	ClearExpiry  bool
+	Original          string
+	Public            *bool
+	CustomDomain      *string
+	ClearCustomDomain bool
+	ExpiresAt         *time.Time
+	ClearExpiry       bool
 }
 
 type URLListOptions struct {

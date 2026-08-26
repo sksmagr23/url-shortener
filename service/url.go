@@ -51,11 +51,12 @@ type URLCreateInput struct {
 }
 
 type URLUpdateInput struct {
-	Original     string
-	Public       *bool
-	CustomDomain string
-	ExpiresAt    *time.Time
-	ClearExpiry  bool
+	Original          string
+	Public            *bool
+	CustomDomain      *string
+	ClearCustomDomain bool
+	ExpiresAt         *time.Time
+	ClearExpiry       bool
 }
 
 func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreateInput) (*model.URL, error) {
@@ -64,6 +65,11 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreat
 	}
 	if !isHTTPURL(input.Original) {
 		return nil, badRequest("invalid URL")
+	}
+
+	domain := normalizeDomain(input.CustomDomain)
+	if domain != "" && !isValidDomain(domain) {
+		return nil, badRequest("invalid custom domain")
 	}
 
 	code := strings.TrimSpace(input.CustomCode)
@@ -82,7 +88,7 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreat
 		ShortCode:    code,
 		UserID:       userID,
 		Public:       input.Public,
-		CustomDomain: strings.TrimSpace(input.CustomDomain),
+		CustomDomain: domain,
 		ExpiresAt:    input.ExpiresAt,
 	}
 	url.ShortURL = s.shortURL(url)
@@ -156,12 +162,22 @@ func (s *URLServiceImpl) Update(ctx *gofr.Context, userID, code string, input UR
 		return nil, badRequest("invalid URL")
 	}
 
+	var customDomainPtr *string
+	if input.CustomDomain != nil {
+		norm := normalizeDomain(*input.CustomDomain)
+		if norm != "" && !isValidDomain(norm) {
+			return nil, badRequest("invalid custom domain")
+		}
+		customDomainPtr = &norm
+	}
+
 	url, err := s.Store.UpdateByShortCode(ctx, userID, code, model.URLUpdate{
-		Original:     input.Original,
-		Public:       input.Public,
-		CustomDomain: strings.TrimSpace(input.CustomDomain),
-		ExpiresAt:    input.ExpiresAt,
-		ClearExpiry:  input.ClearExpiry,
+		Original:          input.Original,
+		Public:            input.Public,
+		CustomDomain:      customDomainPtr,
+		ClearCustomDomain: input.ClearCustomDomain,
+		ExpiresAt:         input.ExpiresAt,
+		ClearExpiry:       input.ClearExpiry,
 	})
 	if err != nil {
 		return nil, err
@@ -212,10 +228,35 @@ func (s *URLServiceImpl) ensureShortCodeAvailable(ctx *gofr.Context, code string
 
 func (s *URLServiceImpl) shortURL(url *model.URL) string {
 	if url.CustomDomain != "" {
-		return strings.TrimRight(url.CustomDomain, "/") + "/" + url.ShortCode
+		domain := strings.TrimRight(url.CustomDomain, "/")
+		if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
+			domain = "https://" + domain
+		}
+		return domain + "/" + url.ShortCode
 	}
 
 	return strings.TrimRight(s.Host, "/") + "/" + url.ShortCode
+}
+
+func normalizeDomain(domain string) string {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return ""
+	}
+	domain = strings.TrimPrefix(domain, "http://")
+	domain = strings.TrimPrefix(domain, "https://")
+	domain = strings.TrimRight(domain, "/")
+	return domain
+}
+
+func isValidDomain(domain string) bool {
+	if domain == "" {
+		return true
+	}
+	if strings.Contains(domain, " ") || strings.Contains(domain, "/") || strings.Contains(domain, "?") || strings.Contains(domain, "#") {
+		return false
+	}
+	return true
 }
 
 func isHTTPURL(original string) bool {

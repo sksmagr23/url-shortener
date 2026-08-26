@@ -3,18 +3,45 @@
   "info": {
     "title": "URL Shortener API",
     "version": "2.0.0",
-    "description": "API documentation for the URL Shortener service built with GoFr."
+    "description": "RESTful API documentation for the URL Shortener microservice built with the GoFr framework. Supports user management, API keys, custom branded domains, link expiry, and redirection."
   },
   "servers": [
-    { "url": "http://localhost:8000" }
+    {
+      "url": "http://localhost:8000",
+      "description": "Local Development Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Application health monitoring and service status"
+    },
+    {
+      "name": "Users",
+      "description": "User registration, authentication, and profile management"
+    },
+    {
+      "name": "API Keys",
+      "description": "Developer API key generation, listing, and revocation"
+    },
+    {
+      "name": "URLs",
+      "description": "URL shortening, listing, detail retrieval, updating, and deletion"
+    },
+    {
+      "name": "Redirection",
+      "description": "Public and owner-protected URL redirection"
+    }
   ],
   "paths": {
     "/health": {
       "get": {
+        "tags": ["Health"],
         "summary": "Health Check",
+        "description": "Returns the health status of the application and its connected datasources (e.g. MongoDB).",
         "responses": {
           "200": {
-            "description": "Health status",
+            "description": "Application is healthy",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/HealthResponse" }
@@ -26,7 +53,9 @@
     },
     "/users/register": {
       "post": {
-        "summary": "Register User",
+        "tags": ["Users"],
+        "summary": "Register a New User",
+        "description": "Registers a new user account with username, email, and password.",
         "requestBody": {
           "required": true,
           "content": {
@@ -37,7 +66,7 @@
         },
         "responses": {
           "201": {
-            "description": "User registered",
+            "description": "User registered successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UserResponse" }
@@ -51,7 +80,9 @@
     },
     "/users/login": {
       "post": {
-        "summary": "Login User",
+        "tags": ["Users"],
+        "summary": "User Login",
+        "description": "Authenticates a user using email or username and password, returning a JWT token.",
         "requestBody": {
           "required": true,
           "content": {
@@ -61,8 +92,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "JWT token generated",
+          "200": {
+            "description": "Authentication successful",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/LoginResponse" }
@@ -76,11 +107,13 @@
     },
     "/users/profile": {
       "get": {
-        "summary": "Get Current User Profile",
+        "tags": ["Users"],
+        "summary": "Get User Profile",
+        "description": "Retrieves profile information for the currently authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
-            "description": "Current user profile",
+            "description": "Authenticated user profile",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UserResponse" }
@@ -91,7 +124,9 @@
         }
       },
       "put": {
-        "summary": "Update Current User Profile",
+        "tags": ["Users"],
+        "summary": "Update User Profile",
+        "description": "Updates profile information (username, email, password) for the authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -103,24 +138,27 @@
         },
         "responses": {
           "200": {
-            "description": "Updated user profile",
+            "description": "Profile updated successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UserResponse" }
               }
             }
           },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
     "/users/api-key": {
       "post": {
+        "tags": ["API Keys"],
         "summary": "Generate API Key",
+        "description": "Generates a new API key for developer access.",
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "201": {
-            "description": "API key generated",
+            "description": "API key generated successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/APIKeyResponse" }
@@ -133,11 +171,13 @@
     },
     "/users/api-keys": {
       "get": {
+        "tags": ["API Keys"],
         "summary": "List API Keys",
+        "description": "Lists all active API keys associated with the authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
-            "description": "API keys",
+            "description": "List of active API keys",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/APIKeysResponse" }
@@ -150,18 +190,38 @@
     },
     "/users/api-keys/{api_key}": {
       "delete": {
+        "tags": ["API Keys"],
         "summary": "Revoke API Key",
+        "description": "Revokes an existing API key for the authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
             "name": "api_key",
             "in": "path",
             "required": true,
+            "description": "The API key string to revoke",
             "schema": { "type": "string" }
           }
         ],
         "responses": {
-          "204": { "description": "API key revoked" },
+          "200": {
+            "description": "API key revoked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string", "example": "API key revoked successfully" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -169,8 +229,9 @@
     },
     "/urls": {
       "post": {
+        "tags": ["URLs"],
         "summary": "Create Short URL",
-        "description": "Create a new short URL owned by the authenticated user.",
+        "description": "Creates a short URL for the provided target URL. Supports custom short codes, custom branded domains, public/private visibility, and expiry timestamps.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -182,7 +243,7 @@
         },
         "responses": {
           "201": {
-            "description": "Short URL created",
+            "description": "Short URL created successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UrlResponse" }
@@ -190,22 +251,44 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
         }
       },
       "get": {
+        "tags": ["URLs"],
         "summary": "List User URLs",
-        "description": "List URLs owned by the authenticated user.",
+        "description": "Lists URLs owned by the authenticated user with pagination and sorting options.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
-          { "name": "sort", "in": "query", "schema": { "type": "string", "default": "created_at" } },
-          { "name": "order", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } }
+          {
+            "name": "page",
+            "in": "query",
+            "description": "(Optional) Page number (default: 1)",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "(Optional) Items per page (default: 10, max: 100)",
+            "schema": { "type": "integer", "default": 10 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "(Optional) Sort field: created_at, short_code, or total_clicks (default: created_at)",
+            "schema": { "type": "string", "default": "created_at" }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "(Optional) Sort direction: asc or desc (default: desc)",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
+          }
         ],
         "responses": {
           "200": {
-            "description": "Owned URLs",
+            "description": "Paginated list of owned URLs",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UrlListResponse" }
@@ -218,20 +301,22 @@
     },
     "/urls/{short_code}": {
       "get": {
+        "tags": ["URLs"],
         "summary": "Get URL Details",
-        "description": "Retrieve details for a URL owned by the authenticated user.",
+        "description": "Retrieves details for a specific URL owned by the authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
             "name": "short_code",
             "in": "path",
             "required": true,
+            "description": "The unique short code identifier",
             "schema": { "type": "string" }
           }
         ],
         "responses": {
           "200": {
-            "description": "URL details",
+            "description": "URL details retrieved",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UrlResponse" }
@@ -243,14 +328,16 @@
         }
       },
       "put": {
+        "tags": ["URLs"],
         "summary": "Update URL",
-        "description": "Update URL settings for an owned URL.",
+        "description": "Updates settings for an owned URL, such as target URL, public visibility, custom domain, or expiration date.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
             "name": "short_code",
             "in": "path",
             "required": true,
+            "description": "The unique short code identifier",
             "schema": { "type": "string" }
           }
         ],
@@ -264,7 +351,7 @@
         },
         "responses": {
           "200": {
-            "description": "URL updated",
+            "description": "URL updated successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/UrlResponse" }
@@ -277,19 +364,38 @@
         }
       },
       "delete": {
+        "tags": ["URLs"],
         "summary": "Delete URL",
-        "description": "Delete an owned URL.",
+        "description": "Deletes a URL owned by the authenticated user.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
             "name": "short_code",
             "in": "path",
             "required": true,
+            "description": "The unique short code identifier",
             "schema": { "type": "string" }
           }
         ],
         "responses": {
-          "204": { "description": "URL deleted" },
+          "200": {
+            "description": "URL deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "message": { "type": "string", "example": "URL deleted successfully" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
@@ -297,26 +403,29 @@
     },
     "/{short_code}": {
       "get": {
+        "tags": ["Redirection"],
         "summary": "Redirect to Original URL",
-        "description": "Redirect endpoint. Public links redirect without authentication; private links require the owner JWT.",
+        "description": "Redirects callers to the destination target URL. Public URLs redirect without authentication; private URLs require owner Bearer token.",
         "parameters": [
           {
             "name": "short_code",
             "in": "path",
             "required": true,
+            "description": "The unique short code identifier",
             "schema": { "type": "string" }
           }
         ],
         "responses": {
           "302": {
-            "description": "Redirect to original URL",
+            "description": "Redirecting to original URL",
             "headers": {
               "Location": {
-                "description": "Original URL",
+                "description": "Destination original URL",
                 "schema": { "type": "string", "format": "uri" }
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
@@ -327,12 +436,13 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "JWT",
+        "description": "Supply standard JWT Authorization header: Bearer <jwt_token>"
       }
     },
     "responses": {
       "BadRequest": {
-        "description": "Bad request",
+        "description": "Invalid input request parameters or payload",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -340,7 +450,7 @@
         }
       },
       "Unauthorized": {
-        "description": "Unauthorized",
+        "description": "Missing or invalid Bearer authentication token",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -348,7 +458,7 @@
         }
       },
       "Conflict": {
-        "description": "Entity already exists",
+        "description": "Resource conflict (e.g. custom short code already in use or user already exists)",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -356,7 +466,7 @@
         }
       },
       "NotFound": {
-        "description": "Entity not found",
+        "description": "Requested resource not found or link expired",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -371,12 +481,11 @@
           "data": {
             "type": "object",
             "properties": {
-              "status": { "type": "string", "example": "healthy" },
-              "timestamp": { "type": "string", "format": "date-time" },
-              "services": {
+              "status": { "type": "string", "example": "UP" },
+              "details": {
                 "type": "object",
                 "properties": {
-                  "mongoDB": { "type": "string", "example": "connected" }
+                  "mongoDB": { "type": "string", "example": "UP" }
                 }
               }
             }
@@ -387,35 +496,34 @@
         "type": "object",
         "required": ["username", "email", "password"],
         "properties": {
-          "username": { "type": "string", "example": "testuser" },
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "format": "password" }
+          "username": { "type": "string", "example": "testuser", "description": "(Required) Unique username" },
+          "email": { "type": "string", "format": "email", "example": "test@example.com", "description": "(Required) User email address" },
+          "password": { "type": "string", "format": "password", "example": "password123", "description": "(Required) Account password" }
         }
       },
       "LoginRequest": {
         "type": "object",
         "required": ["identifier", "password"],
         "properties": {
-          "identifier": { "type": "string", "example": "test@example.com" },
-          "email": { "type": "string", "format": "email" },
-          "username": { "type": "string" },
-          "password": { "type": "string", "format": "password" }
+          "identifier": { "type": "string", "example": "test@example.com", "description": "(Required) User email or username" },
+          "password": { "type": "string", "format": "password", "example": "password123", "description": "(Required) User account password" }
         }
       },
       "UpdateProfileRequest": {
         "type": "object",
+        "description": "All fields are optional; supply only fields to update.",
         "properties": {
-          "username": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "format": "password" }
+          "username": { "type": "string", "example": "new-username", "description": "(Optional) Updated username" },
+          "email": { "type": "string", "format": "email", "example": "new@example.com", "description": "(Optional) Updated email address" },
+          "password": { "type": "string", "format": "password", "example": "newpassword123", "description": "(Optional) Updated password" }
         }
       },
       "User": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
+          "id": { "type": "string", "example": "607f1f77bcf86cd799439011" },
           "username": { "type": "string", "example": "testuser" },
-          "email": { "type": "string", "format": "email" },
+          "email": { "type": "string", "format": "email", "example": "test@example.com" },
           "api_keys": {
             "type": "array",
             "items": { "type": "string" }
@@ -436,7 +544,7 @@
           "data": {
             "type": "object",
             "properties": {
-              "token": { "type": "string" },
+              "token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
               "user": { "$ref": "#/components/schemas/User" }
             }
           }
@@ -448,7 +556,7 @@
           "data": {
             "type": "object",
             "properties": {
-              "api_key": { "type": "string", "example": "usk_..." }
+              "api_key": { "type": "string", "example": "usk_abc123xyz..." }
             }
           }
         }
@@ -461,7 +569,7 @@
             "properties": {
               "api_keys": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": { "type": "string", "example": "usk_abc123xyz..." }
               }
             }
           }
@@ -471,29 +579,29 @@
         "type": "object",
         "required": ["original_url"],
         "properties": {
-          "original_url": { "type": "string", "format": "uri" },
-          "custom_code": { "type": "string", "example": "my-code" },
-          "public": { "type": "boolean", "default": false },
-          "custom_domain": { "type": "string", "format": "uri" },
-          "expires_at": { "type": "string", "format": "date-time" }
+          "original_url": { "type": "string", "format": "uri", "example": "https://gofr.dev", "description": "(Required) Target destination URL to shorten" },
+          "custom_code": { "type": "string", "example": "my-code", "description": "(Optional) Custom short code alias (3-64 chars)" },
+          "public": { "type": "boolean", "default": false, "example": true, "description": "(Optional) Link visibility (true: public redirect without auth, false: requires owner auth)" },
+          "custom_domain": { "type": "string", "example": "sksm.tech", "description": "(Optional) Custom branded domain for short URL" },
+          "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z", "description": "(Optional) UTC expiration date-time" }
         }
       },
       "UpdateUrlRequest": {
         "type": "object",
+        "description": "All fields are optional; supply only fields to update.",
         "properties": {
-          "original_url": { "type": "string", "format": "uri" },
-          "public": { "type": "boolean" },
-          "custom_domain": { "type": "string", "format": "uri" },
-          "expires_at": { "type": "string", "format": "date-time" },
-          "clear_expiry": { "type": "boolean", "default": false }
+          "original_url": { "type": "string", "format": "uri", "example": "https://gofr.dev/docs", "description": "(Optional) New destination target URL" },
+          "public": { "type": "boolean", "example": true, "description": "(Optional) Change public/private visibility" },
+          "custom_domain": { "type": "string", "example": "links.mysite.com", "description": "(Optional) Update custom branded domain" },
+          "clear_custom_domain": { "type": "boolean", "default": false, "example": false, "description": "(Optional) Set true to remove custom domain and revert to default host" },
+          "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z", "description": "(Optional) Update UTC expiration timestamp" },
+          "clear_expiry": { "type": "boolean", "default": false, "example": false, "description": "(Optional) Set true to remove link expiration date" }
         }
       },
       "UrlResponse": {
         "type": "object",
         "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Url"
-          }
+          "data": { "$ref": "#/components/schemas/Url" }
         }
       },
       "UrlListResponse": {
@@ -503,24 +611,22 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/Url" }
           },
-          "pagination": {
-            "$ref": "#/components/schemas/Pagination"
-          }
+          "pagination": { "$ref": "#/components/schemas/Pagination" }
         }
       },
       "Url": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "example": "507f1f77bcf86cd799439011" },
-          "original_url": { "type": "string", "format": "uri" },
-          "short_code": { "type": "string", "example": "abc123" },
-          "user_id": { "type": "string" },
-          "public": { "type": "boolean" },
-          "custom_domain": { "type": "string", "format": "uri" },
-          "expires_at": { "type": "string", "format": "date-time" },
-          "total_clicks": { "type": "integer", "format": "int64" },
-          "unique_clicks": { "type": "integer", "format": "int64" },
-          "short_url": { "type": "string", "format": "uri" },
+          "id": { "type": "string", "example": "607f1f77bcf86cd799439011" },
+          "original_url": { "type": "string", "format": "uri", "example": "https://gofr.dev" },
+          "short_code": { "type": "string", "example": "my-code" },
+          "user_id": { "type": "string", "example": "607f1f77bcf86cd799439012" },
+          "public": { "type": "boolean", "example": true },
+          "custom_domain": { "type": "string", "example": "sksm.tech" },
+          "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z" },
+          "total_clicks": { "type": "integer", "format": "int64", "example": 42 },
+          "unique_clicks": { "type": "integer", "format": "int64", "example": 35 },
+          "short_url": { "type": "string", "format": "uri", "example": "https://sksm.tech/my-code" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }
@@ -528,11 +634,11 @@
       "Pagination": {
         "type": "object",
         "properties": {
-          "page": { "type": "integer" },
-          "limit": { "type": "integer" },
-          "total": { "type": "integer", "format": "int64" },
-          "total_pages": { "type": "integer" }
-          }
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 10 },
+          "total": { "type": "integer", "format": "int64", "example": 1 },
+          "total_pages": { "type": "integer", "example": 1 }
+        }
       },
       "ErrorResponse": {
         "type": "object",
@@ -540,7 +646,7 @@
           "error": {
             "type": "object",
             "properties": {
-              "message": { "type": "string" }
+              "message": { "type": "string", "example": "invalid URL or authorization failure" }
             }
           }
         }

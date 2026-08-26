@@ -88,22 +88,24 @@ func (h *URLHandler) Update(ctx *gofr.Context) (interface{}, error) {
 	}
 
 	var req struct {
-		OriginalURL  string     `json:"original_url"`
-		Public       *bool      `json:"public"`
-		CustomDomain string     `json:"custom_domain"`
-		ExpiresAt    *time.Time `json:"expires_at"`
-		ClearExpiry  bool       `json:"clear_expiry"`
+		OriginalURL       string     `json:"original_url"`
+		Public            *bool      `json:"public"`
+		CustomDomain      *string    `json:"custom_domain"`
+		ClearCustomDomain bool       `json:"clear_custom_domain"`
+		ExpiresAt         *time.Time `json:"expires_at"`
+		ClearExpiry       bool       `json:"clear_expiry"`
 	}
 	if err := ctx.Bind(&req); err != nil {
 		return nil, err
 	}
 
 	url, err := h.Service.Update(ctx, userID, ctx.PathParam("short_code"), service.URLUpdateInput{
-		Original:     req.OriginalURL,
-		Public:       req.Public,
-		CustomDomain: req.CustomDomain,
-		ExpiresAt:    req.ExpiresAt,
-		ClearExpiry:  req.ClearExpiry,
+		Original:          req.OriginalURL,
+		Public:            req.Public,
+		CustomDomain:      req.CustomDomain,
+		ClearCustomDomain: req.ClearCustomDomain,
+		ExpiresAt:         req.ExpiresAt,
+		ClearExpiry:       req.ClearExpiry,
 	})
 	if err != nil {
 		return nil, err

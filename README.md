@@ -1,53 +1,58 @@
 # URL Shortener with GoFr Framework
 
-## Features
+A production-ready, feature-rich URL shortener backend service built with the [GoFr](https://gofr.dev) framework and MongoDB.
 
-- URL shortening with generated or custom short codes
-- JWT based user authentication
-- User registration, login, profile updates, and API key management
-- User-owned links with public/private visibility
-- URL CRUD operations: create, list, get, update, and delete
-- Public redirects for public links; private redirects require owner authentication
-- Expiring links, custom domains, and click counters on URL records
-- MongoDB persistence through GoFr
-- Health checks and Swagger docs at `/.well-known/swagger`
-- Unit and integration-style tests for handlers, services, and stores
+---
 
-## Project Structure
+## 🌟 Features
+
+- **URL Shortening Engine**: Auto-generated 6-character short codes or custom memorable aliases.
+- **Custom Branded Domains**: Shorten links under custom domain aliases (e.g. `sksm.tech/my-link`).
+- **Link Expiry & Visibility**: Set UTC expiration dates and public/private access controls.
+- **User Management & Authentication**: User registration, login, profile updates, and JWT authentication.
+- **API Key Management**: Generate, list, and revoke developer API keys.
+- **MongoDB Data Persistence**: Primary storage for users and URLs via GoFr MongoDB connector.
+- **Interactive Swagger Documentation**: Standardized OpenAPI specs accessible at `/.well-known/swagger`.
+- **Comprehensive Testing**: Unit and integration test suite with GoFr container mocking.
+
+---
+
+## 📁 Project Structure
 
 ```text
-main.go                 # Application entry point
-handler/                # HTTP request handlers
-service/                # Business logic layer
-auth/                   # JWT handling and authenticated context helpers
-store/                  # MongoDB data access layer
-model/                  # Data models
-static/openapi.json     # OpenAPI specification
-configs/                # Configuration files
+main.go                 # Application entry point & route registrations
+handler/                # HTTP request handlers (User, URL, Health)
+service/                # Business logic layer (User, URL generation & validation)
+auth/                   # JWT creation, token validation & middleware
+store/                  # MongoDB data access layer (UserStore & URLStore)
+model/                  # Domain models & request/response DTOs
+static/openapi.json     # OpenAPI 3.0 specification for Swagger UI
+configs/                # Configuration directory (.env file)
 ```
 
-## Architecture
+---
 
-1. Handler layer (`handler/`)
-   HTTP request parsing, response formatting, and authenticated user extraction.
+## 🏛️ Architecture
 
-2. Service layer (`service/`)
-   Business logic for users, URLs, password hashing, JWT creation, API key generation, ownership checks, privacy checks, and expiry checks.
+The application follows GoFr's recommended **3-Layer Clean Architecture**:
 
-3. Store layer (`store/`)
-   MongoDB CRUD operations for users, URLs, and API key storage.
+1. **Handler Layer (`handler/`)**: Parses HTTP requests, validates incoming JSON payloads, extracts authenticated user context, and formats JSON responses.
+2. **Service Layer (`service/`)**: Contains core domain rules (URL validation, custom code collision checks, domain normalization, password hashing, JWT creation, expiry checks, and privacy permissions).
+3. **Store Layer (`store/`)**: Encapsulates database CRUD operations against MongoDB collections (`users` and `urls`).
 
-## Quick Start
+---
 
+## 🚀 Quick Start
+
+### 1. Clone & Setup
 ```bash
 git clone https://github.com/sksmagr23/url-shortener.git
-cd url-shortener-gofr
+cd url-shortener
 make tidy
-make run
 ```
 
-Set the following environment variables in `configs/.env`:
-
+### 2. Environment Configuration
+Create or edit `configs/.env`:
 ```env
 MONGO_URI=mongodb://localhost:27017/
 MONGO_DB=url_shortener
@@ -56,167 +61,188 @@ SHORT_URL_HOST=http://localhost:8000/
 JWT_SECRET=replace-with-a-long-random-secret
 ```
 
-## Authentication
+### 3. Run Application
+```bash
+make run
+```
+The server will start listening at `http://localhost:8000`. Swagger documentation is available at `http://localhost:8000/.well-known/swagger`.
 
-Protected endpoints require:
+---
+
+## 🔐 Authentication
+
+Protected endpoints require a Bearer token in the `Authorization` header:
 
 ```http
 Authorization: Bearer <jwt_token>
 ```
 
-Private redirect links can also be accessed by the owner when the same bearer token is supplied.
+Private short links (`"public": false`) require the owner's JWT token when accessing the redirection endpoint `GET /{short_code}`.
 
-## API
+---
 
-Base URL: `http://localhost:8000`
+## 📖 API Documentation
 
-### Health
+### 1. Health Endpoint
 
-`GET /health`
+#### `GET /health`
+Returns system status and datasource health (e.g., MongoDB connectivity).
+- **Authentication**: None
 
-### Users
+---
 
-`POST /users/register`
+### 2. User Management Endpoints
 
-```json
-{
-  "username": "testuser",
-  "email": "test@example.com",
-  "password": "password123"
-}
-```
+#### `POST /users/register`
+Registers a new user account.
+- **Authentication**: None
+- **Request Body**:
+  - `username` *(string, **Required**)*: Unique username.
+  - `email` *(string, **Required**)*: Valid email address.
+  - `password` *(string, **Required**)*: User account password.
 
-`POST /users/login`
+#### `POST /users/login`
+Authenticates a user and returns a JWT token.
+- **Authentication**: None
+- **Request Body**:
+  - `identifier` *(string, **Required**)*: Registered email or username.
+  - `password` *(string, **Required**)*: Account password.
 
-```json
-{
-  "identifier": "test@example.com",
-  "password": "password123"
-}
-```
+#### `GET /users/profile`
+Retrieves profile details for the authenticated user.
+- **Authentication**: Required (`Bearer <jwt_token>`)
 
-`GET /users/profile`
+#### `PUT /users/profile`
+Updates profile information for the authenticated user.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Request Body** *(All fields optional)*:
+  - `username` *(string, Optional)*: New username.
+  - `email` *(string, Optional)*: New email address.
+  - `password` *(string, Optional)*: New password.
 
-`PUT /users/profile`
+---
 
-```json
-{
-  "username": "new-name",
-  "email": "new@example.com",
-  "password": "new-password"
-}
-```
+### 3. API Key Management Endpoints
 
-### API Keys
+#### `POST /users/api-key`
+Generates a new developer API key.
+- **Authentication**: Required (`Bearer <jwt_token>`)
 
-`POST /users/api-key`
+#### `GET /users/api-keys`
+Lists all active API keys owned by the user.
+- **Authentication**: Required (`Bearer <jwt_token>`)
 
-Generates and stores a new API key.
+#### `DELETE /users/api-keys/{api_key}`
+Revokes an active API key.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `api_key` *(string, **Required**)*: The API key string to revoke.
 
-`GET /users/api-keys`
+---
 
-Lists API keys for the authenticated user.
+### 4. URL Management Endpoints
 
-`DELETE /users/api-keys/{api_key}`
+#### `POST /urls`
+Creates a shortened URL.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Request Body**:
+  - `original_url` *(string, **Required**)*: Destination HTTP/HTTPS target URL.
+  - `custom_code` *(string, Optional)*: Desired custom alias (3–64 chars). Auto-generated if omitted.
+  - `public` *(boolean, Optional, default: `false`)*: Link visibility (`true` for public, `false` for owner-only).
+  - `custom_domain` *(string, Optional)*: Custom domain alias (e.g. `sksm.tech` or `short.example.com`).
+  - `expires_at` *(string RFC3339 date-time, Optional)*: UTC expiration timestamp.
 
-Revokes an API key for the authenticated user.
+#### `GET /urls`
+Lists all URLs owned by the authenticated user with pagination and sorting.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Query Parameters**:
+  - `page` *(integer, Optional, default: `1`)*: Page number.
+  - `limit` *(integer, Optional, default: `10`, max: `100`)*: Items per page.
+  - `sort` *(string, Optional, default: `"created_at"`)*: Sort field (`"created_at"`, `"short_code"`, `"total_clicks"`).
+  - `order` *(string, Optional, default: `"desc"`)*: Sort direction (`"asc"` or `"desc"`).
 
-### URLs
+#### `GET /urls/{short_code}`
+Retrieves URL details for an owned link.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
 
-`POST /urls`
+#### `PUT /urls/{short_code}`
+Updates configuration for an owned URL.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+- **Request Body** *(All fields optional)*:
+  - `original_url` *(string, Optional)*: Updated target URL.
+  - `public` *(boolean, Optional)*: Update link visibility.
+  - `custom_domain` *(string, Optional)*: Update custom domain alias.
+  - `clear_custom_domain` *(boolean, Optional, default: `false`)*: Set `true` to remove custom domain.
+  - `expires_at` *(string RFC3339 date-time, Optional)*: Update expiration timestamp.
+  - `clear_expiry` *(boolean, Optional, default: `false`)*: Set `true` to remove link expiration date.
 
-```json
-{
-  "original_url": "https://example.com/very-long-url",
-  "custom_code": "my-code",
-  "public": true,
-  "custom_domain": "https://short.example.com",
-  "expires_at": "2026-12-31T23:59:59Z"
-}
-```
+#### `DELETE /urls/{short_code}`
+Deletes an owned URL record.
+- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
 
-`GET /urls?page=1&limit=10&sort=created_at&order=desc`
+---
 
-Lists URLs owned by the authenticated user.
+### 5. Redirection Endpoint
 
-`GET /urls/{short_code}`
+#### `GET /{short_code}`
+Redirects callers to the original target URL and increments click count.
+- **Authentication**: None for public links; Required (`Bearer <jwt_token>`) for private links.
+- **Response**: `HTTP 302 Found` with `Location` header pointing to `original_url`.
 
-Returns details for an owned URL.
+---
 
-`PUT /urls/{short_code}`
+## 🗄️ Database Schemas (MongoDB)
 
-```json
-{
-  "original_url": "https://example.com/new-target",
-  "public": false,
-  "custom_domain": "https://short.example.com",
-  "expires_at": "2026-12-31T23:59:59Z",
-  "clear_expiry": false
-}
-```
-
-`DELETE /urls/{short_code}`
-
-Deletes an owned URL.
-
-`GET /{short_code}`
-
-Redirects to the original URL. Public links redirect without authentication; private links require the owner JWT.
-
-## MongoDB Collections
-
-`users`
-
+### `users` Collection
 ```json
 {
   "_id": "ObjectIdHex",
   "username": "testuser",
   "email": "test@example.com",
-  "password_hash": "bcrypt-hash",
+  "password_hash": "$2a$10$...",
   "api_keys": ["usk_..."],
   "created_at": "2026-06-01T00:00:00Z",
   "updated_at": "2026-06-01T00:00:00Z"
 }
 ```
 
-`urls`
-
+### `urls` Collection
 ```json
 {
   "_id": "ObjectIdHex",
-  "original_url": "https://example.com/long-url",
-  "short_code": "abc123",
+  "original_url": "https://gofr.dev",
+  "short_code": "my-code",
   "user_id": "ObjectIdHex",
   "public": true,
-  "custom_domain": "https://short.example.com",
-  "expires_at": "2026-12-31T23:59:59Z",
-  "total_clicks": 0,
-  "unique_clicks": 0,
+  "custom_domain": "sksm.tech",
+  "expires_at": "2028-12-31T23:59:59Z",
+  "total_clicks": 42,
+  "unique_clicks": 35,
   "created_at": "2026-06-01T00:00:00Z",
   "updated_at": "2026-06-01T00:00:00Z"
 }
 ```
 
-## Development
+---
+
+## 🛠️ Development & Testing
 
 ```bash
-make help          # Show all available commands
-make test          # Run all tests
-make lint          # Run linting
-make lint-fix      # Run linting with auto-fix
-make lint-format   # Run linting formatting
-make run           # Run the application
-make tidy          # Install dependencies
-make setup         # Setup the project
-make clean         # Clean build artifacts
-make test-coverage # Run tests with coverage
+make help          # List available Makefile targets
+make test          # Run all unit tests
+make test-coverage # Run unit tests with coverage report
+make lint          # Run golangci-lint checks
+make lint-fix      # Automatically fix linting/formatting issues
+make run           # Start application server
+make tidy          # Download and clean Go modules
 ```
 
-### Test Coverage
+---
 
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: Service layer integration
-- **Handler Tests**: HTTP endpoint testing
-- **Mock Testing**: Using GoFr's built-in mocking
-
-#### Author:- [Saksham Agrawal](https://github.com/sksmagr23)
+#### Author: [Saksham Agrawal](https://github.com/sksmagr23)

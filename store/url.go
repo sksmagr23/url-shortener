@@ -65,16 +65,23 @@ func (s *URLStore) UpdateByShortCode(ctx *gofr.Context, userID, code string, upd
 	if update.Public != nil {
 		set["public"] = *update.Public
 	}
-	if update.CustomDomain != "" {
-		set["custom_domain"] = update.CustomDomain
+	if update.CustomDomain != nil {
+		set["custom_domain"] = *update.CustomDomain
 	}
 	if update.ExpiresAt != nil {
 		set["expires_at"] = update.ExpiresAt
 	}
 
 	mutation := bson.M{"$set": set}
+	unset := bson.M{}
 	if update.ClearExpiry {
-		mutation["$unset"] = bson.M{"expires_at": ""}
+		unset["expires_at"] = ""
+	}
+	if update.ClearCustomDomain {
+		unset["custom_domain"] = ""
+	}
+	if len(unset) > 0 {
+		mutation["$unset"] = unset
 	}
 
 	if err := ctx.Mongo.UpdateOne(ctx, "urls", bson.M{"short_code": code, "user_id": userID}, mutation); err != nil {
