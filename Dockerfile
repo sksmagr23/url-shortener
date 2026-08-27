@@ -21,6 +21,6 @@ WORKDIR /app
 COPY --from=builder /app/url-shortener /app/url-shortener
 COPY --from=builder /app/static /app/static
 
-EXPOSE 8000 2121
+EXPOSE 8000
 
 ENTRYPOINT ["/app/url-shortener"]

@@ -23,9 +23,18 @@ func main() {
 
 	app := gofr.New()
 
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+	mongoDB := os.Getenv("MONGO_DB")
+	if mongoDB == "" {
+		mongoDB = "url_shortener"
+	}
+
 	db := mongo.New(mongo.Config{
-		URI:               os.Getenv("MONGO_URI"),
-		Database:          os.Getenv("MONGO_DB"),
+		URI:               mongoURI,
+		Database:          mongoDB,
 		ConnectionTimeout: 4 * time.Second,
 	})
 
