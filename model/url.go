@@ -34,7 +34,7 @@ type URLListOptions struct {
 }
 
 type URLListResult struct {
-	URLs       []*URL     `json:"data"`
+	URLs       []*URL     `json:"urls"`
 	Pagination Pagination `json:"pagination"`
 }
 
