@@ -20,7 +20,6 @@ WORKDIR /app
 
 COPY --from=builder /app/url-shortener /app/url-shortener
 COPY --from=builder /app/static /app/static
-COPY --from=builder /app/configs /app/configs
 
 EXPOSE 8000 2121
 
