@@ -13,11 +13,12 @@ services:
     environment:
       - HTTP_PORT=8000
       - MONGO_URI=mongodb://mongodb:27017
-      - MONGO_DB=url_service
+      - MONGO_DB=url_shortener
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JWT_SECRET=production-secret-jwt-key-replace-me
-      - APP_BASE_URL=http://localhost:8000/
+      - JWT_SECRET=jwtsupersecretkey
+      - SHORT_URL_HOST=http://localhost:8000/
+      - GOFR_TELEMETRY=false
     depends_on:
       - mongodb
       - redis
