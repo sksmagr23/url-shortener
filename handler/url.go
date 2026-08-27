@@ -66,6 +66,16 @@ func (h *URLHandler) List(ctx *gofr.Context) (interface{}, error) {
 	return result, nil
 }
 
+// GET /urls/public
+func (h *URLHandler) ListPublic(ctx *gofr.Context) (interface{}, error) {
+	result, err := h.Service.ListPublic(ctx, serviceListOptions(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // GET /api/urls/{short_code}
 func (h *URLHandler) Get(ctx *gofr.Context) (interface{}, error) {
 	userID, ok := auth.UserIDFromContext(ctx.Context)

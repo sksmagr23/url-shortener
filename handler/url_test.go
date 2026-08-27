@@ -102,6 +102,14 @@ func (m *MockURLService) GetQRCode(ctx *gofr.Context, userID, code string, size 
 	return args.Get(0).(*service.QRCodeResponse), args.Error(1)
 }
 
+func (m *MockURLService) ListPublic(ctx *gofr.Context, options model.URLListOptions) (*model.URLListResult, error) {
+	args := m.Called(ctx, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URLListResult), args.Error(1)
+}
+
 func TestURLCreateHandler(t *testing.T) {
 	tests := []struct {
 		name           string

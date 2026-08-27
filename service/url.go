@@ -56,6 +56,7 @@ type URLService interface {
 	GetAnalyticsSummary(ctx *gofr.Context, userID, code string) (*model.AnalyticsSummaryResponse, error)
 	GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error)
 	GetQRCode(ctx *gofr.Context, userID, code string, size int) (*QRCodeResponse, error)
+	ListPublic(ctx *gofr.Context, options model.URLListOptions) (*model.URLListResult, error)
 }
 
 type URLCreateInput struct {
@@ -142,6 +143,44 @@ func (s *URLServiceImpl) List(ctx *gofr.Context, userID string, options model.UR
 	sortURLs(urls, options.Sort, options.Order)
 
 	total, err := s.Store.CountByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	start := (options.Page - 1) * options.Limit
+	end := start + options.Limit
+	if start > len(urls) {
+		start = len(urls)
+	}
+	if end > len(urls) {
+		end = len(urls)
+	}
+
+	for _, url := range urls {
+		url.ShortURL = s.shortURL(url)
+	}
+
+	return &model.URLListResult{
+		URLs: urls[start:end],
+		Pagination: model.Pagination{
+			Page:       options.Page,
+			Limit:      options.Limit,
+			Total:      total,
+			TotalPages: totalPages(total, options.Limit),
+		},
+	}, nil
+}
+
+func (s *URLServiceImpl) ListPublic(ctx *gofr.Context, options model.URLListOptions) (*model.URLListResult, error) {
+	normalizeListOptions(&options)
+	urls, err := s.Store.ListPublic(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	sortURLs(urls, options.Sort, options.Order)
+
+	total, err := s.Store.CountPublic(ctx)
 	if err != nil {
 		return nil, err
 	}

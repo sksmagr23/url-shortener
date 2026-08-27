@@ -95,6 +95,28 @@ func (s *URLStore) CountByUser(ctx *gofr.Context, userID string) (int64, error) 
 	return m.CountDocuments(ctx, "urls", bson.M{"user_id": userID})
 }
 
+func (s *URLStore) ListPublic(ctx *gofr.Context) ([]*model.URL, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
+	var result []*model.URL
+	err := m.Find(ctx, "urls", bson.M{"public": true}, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *URLStore) CountPublic(ctx *gofr.Context) (int64, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return 0, errors.New("mongodb datasource is not available")
+	}
+	return m.CountDocuments(ctx, "urls", bson.M{"public": true})
+}
+
 func (s *URLStore) UpdateByShortCode(ctx *gofr.Context, userID, code string, update model.URLUpdate) (*model.URL, error) {
 	m := s.getMongo(ctx)
 	if m == nil {

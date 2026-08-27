@@ -87,7 +87,7 @@ func AuthMiddleware(secret string, validator APIKeyValidator) func(http.Handler)
 func requiresAuth(r *http.Request) bool {
 	path := r.URL.Path
 
-	if path == "/users/register" || path == "/users/login" {
+	if path == "/users/register" || path == "/users/login" || path == "/urls/public" {
 		return false
 	}
 
