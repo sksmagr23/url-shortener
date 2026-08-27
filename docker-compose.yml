@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # GoFr Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: url_shortener_backend
+    ports:
+      - "8000:8000"
+      - "2121:2121"
+    environment:
+      - HTTP_PORT=8000
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB=url_service
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=production-secret-jwt-key-replace-me
+      - APP_BASE_URL=http://localhost:8000/
+    depends_on:
+      - mongodb
+      - redis
+    restart: always
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: url_shortener_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+  # Redis Cache Accelerator
+  redis:
+    image: redis:7-alpine
+    container_name: url_shortener_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  mongo_data:
+  redis_data:
