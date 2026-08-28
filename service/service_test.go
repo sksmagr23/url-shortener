@@ -104,9 +104,9 @@ func TestURLServiceCreate(t *testing.T) {
 
 				mocks.Mongo.EXPECT().InsertOne(
 					gomock.Any(),
-					"urls",
 					gomock.Any(),
-				).Return("test-id", nil)
+					gomock.Any(),
+				).Return("test-id", nil).AnyTimes()
 			}
 
 			ctx := &gofr.Context{
@@ -298,9 +298,9 @@ func TestURLServiceCreateWithCustomCodeAndPublicFlag(t *testing.T) {
 	).Return(mongo.ErrNoDocuments)
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
-		"urls",
 		gomock.Any(),
-	).Return("url-1", nil)
+		gomock.Any(),
+	).Return("url-1", nil).AnyTimes()
 
 	result, err := urlService.Create(&gofr.Context{
 		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
@@ -378,9 +378,9 @@ func TestURLServiceCreateWithCustomDomain(t *testing.T) {
 	).Return(mongo.ErrNoDocuments)
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
-		"urls",
 		gomock.Any(),
-	).Return("url-1", nil)
+		gomock.Any(),
+	).Return("url-1", nil).AnyTimes()
 
 	result, err := urlService.Create(&gofr.Context{
 		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
@@ -405,13 +405,6 @@ func TestURLServiceUpdateCustomDomain(t *testing.T) {
 
 	customDomain := "custom.example.com"
 
-	mocks.Mongo.EXPECT().UpdateOne(
-		gomock.Any(),
-		"urls",
-		bson.M{"short_code": "my-code", "user_id": "user-1"},
-		gomock.Any(),
-	).Return(nil)
-
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
@@ -421,10 +414,24 @@ func TestURLServiceUpdateCustomDomain(t *testing.T) {
 		u, ok := res.(*model.URL)
 		if ok {
 			u.ShortCode = "my-code"
+			u.CurrentVersion = 1
 			u.CustomDomain = "custom.example.com"
 		}
 		return nil
-	})
+	}).AnyTimes()
+
+	mocks.Mongo.EXPECT().UpdateOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).Return(nil).AnyTimes()
+
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		"url_versions",
+		gomock.Any(),
+	).Return("ver-2", nil).AnyTimes()
 
 	result, err := urlService.Update(&gofr.Context{
 		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
@@ -538,13 +545,6 @@ func TestURLServiceUpdateInvalidatesCache(t *testing.T) {
 
 	customDomain := "custom.example.com"
 
-	mocks.Mongo.EXPECT().UpdateOne(
-		gomock.Any(),
-		"urls",
-		bson.M{"short_code": "my-code", "user_id": "user-1"},
-		gomock.Any(),
-	).Return(nil)
-
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
@@ -554,10 +554,24 @@ func TestURLServiceUpdateInvalidatesCache(t *testing.T) {
 		u, ok := res.(*model.URL)
 		if ok {
 			u.ShortCode = "my-code"
+			u.CurrentVersion = 1
 			u.CustomDomain = "custom.example.com"
 		}
 		return nil
-	})
+	}).AnyTimes()
+
+	mocks.Mongo.EXPECT().UpdateOne(
+		gomock.Any(),
+		"urls",
+		bson.M{"short_code": "my-code", "user_id": "user-1"},
+		gomock.Any(),
+	).Return(nil).AnyTimes()
+
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		"url_versions",
+		gomock.Any(),
+	).Return("ver-2", nil).AnyTimes()
 
 	mocks.Redis.EXPECT().Del(gomock.Any(), "url:my-code").Return(redis.NewIntResult(1, nil))
 

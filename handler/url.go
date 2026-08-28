@@ -216,3 +216,45 @@ func serviceListOptions(ctx *gofr.Context) model.URLListOptions {
 		Order: ctx.Param("order"),
 	}
 }
+
+// GET /urls/{short_code}/versions
+func (h *URLHandler) ListVersions(ctx *gofr.Context) (interface{}, error) {
+	code := ctx.PathParam("short_code")
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+	return h.Service.ListVersions(ctx, userID, code)
+}
+
+// POST /urls/{short_code}/rollback/{version}
+func (h *URLHandler) RollbackVersion(ctx *gofr.Context) (interface{}, error) {
+	code := ctx.PathParam("short_code")
+	versionStr := ctx.PathParam("version")
+	if versionStr == "" {
+		versionStr = ctx.Param("version")
+	}
+
+	var version int
+	if versionStr != "" && versionStr != "{version}" {
+		version, _ = strconv.Atoi(versionStr)
+	}
+
+	if version <= 0 {
+		var req struct {
+			Version int `json:"version"`
+		}
+		_ = ctx.Bind(&req)
+		version = req.Version
+	}
+
+	if version <= 0 {
+		return nil, service.StatusError{Code: 400, Message: "invalid or missing version parameter. Replace {version} with a number, e.g. POST /urls/abcd/rollback/1"}
+	}
+
+	userID, ok := auth.UserIDFromContext(ctx.Context)
+	if !ok {
+		return nil, service.StatusError{Code: 401, Message: "missing authenticated user"}
+	}
+	return h.Service.RollbackVersion(ctx, userID, code, version)
+}

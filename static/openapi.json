@@ -35,6 +35,10 @@
     {
       "name": "Redirection",
       "description": "Public and owner-protected URL redirection"
+    },
+    {
+      "name": "Versioning",
+      "description": "Immutable audit trail history and target destination rollbacks"
     }
   ],
   "paths": {
@@ -443,6 +447,102 @@
               }
             }
           },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/urls/{short_code}/versions": {
+      "get": {
+        "tags": ["Versioning"],
+        "summary": "List URL Version Audit History",
+        "description": "Retrieves the complete immutable audit trail of historical versions for an owned short link.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version audit history retrieved successfully"
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/urls/{short_code}/rollback": {
+      "post": {
+        "tags": ["Versioning"],
+        "summary": "Rollback URL Target Destination (JSON Body)",
+        "description": "Rolls back the target URL destination using a JSON payload specifying target version.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["version"],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "example": 1,
+                    "description": "Target historical version number to restore"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Link destination successfully rolled back"
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/urls/{short_code}/rollback/{version}": {
+      "post": {
+        "tags": ["Versioning"],
+        "summary": "Rollback URL Target Destination (Path Parameter)",
+        "description": "Rolls back the target URL destination to a specified historical version number.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "description": "Short code identifier",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "description": "Target version number to restore",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Link destination successfully rolled back"
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }

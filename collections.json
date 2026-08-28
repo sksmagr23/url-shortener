@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "URL Shortener MongoDB Collections Schema",
+  "description": "JSON schema definitions for all MongoDB collections used by the URL Management Service",
+  "collections": {
+    "users": {
+      "description": "Stores user account details, hashed passwords, and developer API keys",
+      "type": "object",
+      "properties": {
+        "_id": { "type": "string", "example": "607f1f77bcf86cd799439011" },
+        "username": { "type": "string", "example": "testuser" },
+        "email": { "type": "string", "example": "test@example.com" },
+        "password_hash": { "type": "string", "example": "$2a$10$..." },
+        "api_keys": {
+          "type": "array",
+          "items": { "type": "string" },
+          "example": ["usk_78c033675eae807de89d405a14c4814de023d0535fb70713427af6c80c1d6c2e"]
+        },
+        "created_at": { "type": "string", "format": "date-time", "example": "2026-06-01T00:00:00Z" },
+        "updated_at": { "type": "string", "format": "date-time", "example": "2026-06-01T00:00:00Z" }
+      },
+      "required": ["_id", "username", "email", "password_hash"]
+    },
+    "urls": {
+      "description": "Stores shortened URL configurations, current target destination, visibility, and click metrics",
+      "type": "object",
+      "properties": {
+        "_id": { "type": "string", "example": "607f1f77bcf86cd799439012" },
+        "original_url": { "type": "string", "example": "https://gofr.dev" },
+        "short_code": { "type": "string", "example": "my-code" },
+        "user_id": { "type": "string", "example": "607f1f77bcf86cd799439011" },
+        "current_version": { "type": "integer", "example": 3 },
+        "public": { "type": "boolean", "example": true },
+        "custom_domain": { "type": "string", "example": "my.tech" },
+        "expires_at": { "type": ["string", "null"], "format": "date-time", "example": "2028-12-31T23:59:59Z" },
+        "total_clicks": { "type": "integer", "example": 42 },
+        "unique_clicks": { "type": "integer", "example": 35 },
+        "created_at": { "type": "string", "format": "date-time", "example": "2026-06-01T00:00:00Z" },
+        "updated_at": { "type": "string", "format": "date-time", "example": "2026-06-01T00:00:00Z" }
+      },
+      "required": ["_id", "original_url", "short_code", "user_id", "current_version"]
+    },
+    "url_versions": {
+      "description": "Immutable audit trail storing historical snapshots of URL destinations and metadata for version rollback",
+      "type": "object",
+      "properties": {
+        "_id": { "type": "string", "example": "607f1f77bcf86cd799439013" },
+        "url_id": { "type": "string", "example": "607f1f77bcf86cd799439012" },
+        "short_code": { "type": "string", "example": "my-code" },
+        "version": { "type": "integer", "example": 1 },
+        "original_url": { "type": "string", "example": "https://site.com/a" },
+        "custom_domain": { "type": "string", "example": "" },
+        "public": { "type": "boolean", "example": true },
+        "expires_at": { "type": ["string", "null"], "format": "date-time", "example": null },
+        "changed_by": { "type": "string", "example": "607f1f77bcf86cd799439011" },
+        "change_reason": { "type": "string", "example": "Initial creation" },
+        "created_at": { "type": "string", "format": "date-time", "example": "2026-08-28T10:00:00Z" }
+      },
+      "required": ["_id", "url_id", "short_code", "version", "original_url", "changed_by"]
+    },
+    "click_events": {
+      "description": "Stores individual click redirection telemetry events for device, browser, OS, referrer, and geo-location analytics",
+      "type": "object",
+      "properties": {
+        "_id": { "type": "string", "example": "607f1f77bcf86cd799439014" },
+        "url_id": { "type": "string", "example": "607f1f77bcf86cd799439012" },
+        "short_code": { "type": "string", "example": "my-code" },
+        "timestamp": { "type": "string", "format": "date-time", "example": "2026-08-26T12:00:00Z" },
+        "ip_address": { "type": "string", "example": "203.0.113.195" },
+        "user_agent": { "type": "string", "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ..." },
+        "browser": { "type": "string", "example": "Chrome" },
+        "os": { "type": "string", "example": "Windows" },
+        "device_type": { "type": "string", "example": "Desktop" },
+        "country": { "type": "string", "example": "US" },
+        "referrer": { "type": "string", "example": "https://google.com" }
+      },
+      "required": ["_id", "short_code", "timestamp", "ip_address"]
+    }
+  }
+}
