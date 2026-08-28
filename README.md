@@ -1,6 +1,27 @@
-# URL Management Service
+<div align="center">
 
-A production-ready, high-performance URL Management & Link Analytics backend service built with the [GoFr](https://gofr.dev) framework, Redis, and MongoDB.
+<img src="https://avatars.githubusercontent.com/u/146108433?s=200&v=4" alt="GoFr" width="72"/>
+
+## URL Management Service
+
+A high-performance backend service for URL shortening, link lifecycle management, QR generation, click analytics, authentication, and developer automation.
+
+<p>
+  <a href="https://gofr.dev">
+    <img src="https://img.shields.io/badge/GoFr-Framework-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="GoFr"/>
+  </a>
+  <img src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go"/>
+  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB"/>
+  <img src="https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/API-REST-0A0A0A?style=flat-square" alt="REST API"/>
+  <img src="https://img.shields.io/badge/Auth-JWT%20%7C%20API%20Key-6C47FF?style=flat-square" alt="Authentication"/>
+  <img src="https://img.shields.io/badge/Docs-OpenAPI%20%7C%20Swagger-85EA2D?style=flat-square&logo=swagger&logoColor=black" alt="Swagger"/>
+</p>
+
+</div>
 
 ---
 
@@ -182,4 +203,6 @@ make tidy          # Download and clean Go modules
 
 ---
 
-#### Author: [Saksham Agrawal](https://github.com/sksmagr23)
+#### Author:  <a href="https://github.com/sksmagr23">
+  <img src="https://img.shields.io/badge/GitHub-sksmagr23-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/>
+</a>

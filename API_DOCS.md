@@ -25,7 +25,7 @@ Protected endpoints accept authentication via **either** of the following header
 
 Private short links (`"public": false`) also require owner authentication via JWT or API Key when accessing the redirection endpoint `GET /{short_code}`.
 
-### ⏱️ Rate Limiting
+### Rate Limiting
 All endpoints enforce sliding-window rate limiting (100 requests per minute per IP/User). If exceeded:
 - **HTTP Status**: `429 Too Many Requests`
 - **Response Header**: `Retry-After: 60`
@@ -45,23 +45,23 @@ All endpoints enforce sliding-window rate limiting (100 requests per minute per 
 
 | Category | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|---|
-| **Health** | `GET` | `/health` | Application health and MongoDB status | ❌ No |
-| **Status** | `GET` | `/api/status` | Global platform system statistics | ❌ No |
-| **Users** | `POST` | `/users/register` | Register a new user account | ❌ No |
-| **Users** | `POST` | `/users/login` | Login and receive JWT token | ❌ No |
-| **Users** | `GET` | `/users/profile` | Get authenticated user profile | ✅ Yes |
-| **Users** | `PUT` | `/users/profile` | Update user profile details | ✅ Yes |
-| **API Keys** | `POST` | `/users/api-key` | Generate a new developer API key | ✅ Yes |
-| **API Keys** | `GET` | `/users/api-keys` | List active developer API keys | ✅ Yes |
-| **API Keys** | `DELETE` | `/users/api-keys/{api_key}` | Revoke an active API key | ✅ Yes |
-| **URLs** | `POST` | `/urls` | Create a shortened URL | ✅ Yes |
-| **URLs** | `GET` | `/urls` | List owned URLs (paginated & sorted) | ✅ Yes |
-| **URLs** | `GET` | `/urls/public` | List public community links (guest feed) | ❌ No |
-| **URLs** | `GET` | `/urls/{short_code}` | Get URL details by short code | ✅ Yes |
-| **URLs** | `PUT` | `/urls/{short_code}` | Update URL target, domain, or expiry | ✅ Yes |
-| **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✅ Yes |
-| **Analytics** | `GET` | `/urls/{short_code}/analytics` | Detailed click summary breakdown | ✅ Yes |
-| **Analytics** | `GET` | `/urls/{short_code}/analytics/timeseries` | Timeseries click aggregation | ✅ Yes |
+| **Health** | `GET` | `/health` | Application health and MongoDB status | ✗ |
+| **Status** | `GET` | `/api/status` | Global platform system statistics | ✗ |
+| **Users** | `POST` | `/users/register` | Register a new user account | ✗ |
+| **Users** | `POST` | `/users/login` | Login and receive JWT token | ✗ |
+| **Users** | `GET` | `/users/profile` | Get authenticated user profile | ✓ |
+| **Users** | `PUT` | `/users/profile` | Update user profile details | ✓ |
+| **API Keys** | `POST` | `/users/api-key` | Generate a new developer API key | ✓ |
+| **API Keys** | `GET` | `/users/api-keys` | List active developer API keys | ✓ |
+| **API Keys** | `DELETE` | `/users/api-keys/{api_key}` | Revoke an active API key | ✓ |
+| **URLs** | `POST` | `/urls` | Create a shortened URL | ✓ |
+| **URLs** | `GET` | `/urls` | List owned URLs (paginated & sorted) | ✓ |
+| **URLs** | `GET` | `/urls/public` | List public community links (guest feed) | ✗ |
+| **URLs** | `GET` | `/urls/{short_code}` | Get URL details by short code | ✓ |
+| **URLs** | `PUT` | `/urls/{short_code}` | Update URL target, domain, or expiry | ✓ |
+| **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✓ |
+| **Analytics** | `GET` | `/urls/{short_code}/analytics` | Detailed click summary breakdown | ✓ |
+| **Analytics** | `GET` | `/urls/{short_code}/analytics/timeseries` | Timeseries click aggregation | ✓ |
 | **QR Code** | `GET` | `/urls/{short_code}/qr` | Generate dynamic QR code image or base64 JSON | ⚠️ Public / Owner |
 | **Redirection** | `GET` | `/{short_code}` | Redirect to original target URL | ⚠️ Public / Owner |
 
