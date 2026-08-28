@@ -46,6 +46,7 @@ All endpoints enforce sliding-window rate limiting (100 requests per minute per 
 | Category | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|---|
 | **Health** | `GET` | `/health` | Application health and MongoDB status | ❌ No |
+| **Status** | `GET` | `/api/status` | Global platform system statistics | ❌ No |
 | **Users** | `POST` | `/users/register` | Register a new user account | ❌ No |
 | **Users** | `POST` | `/users/login` | Login and receive JWT token | ❌ No |
 | **Users** | `GET` | `/users/profile` | Get authenticated user profile | ✅ Yes |
@@ -55,6 +56,7 @@ All endpoints enforce sliding-window rate limiting (100 requests per minute per 
 | **API Keys** | `DELETE` | `/users/api-keys/{api_key}` | Revoke an active API key | ✅ Yes |
 | **URLs** | `POST` | `/urls` | Create a shortened URL | ✅ Yes |
 | **URLs** | `GET` | `/urls` | List owned URLs (paginated & sorted) | ✅ Yes |
+| **URLs** | `GET` | `/urls/public` | List public community links (guest feed) | ❌ No |
 | **URLs** | `GET` | `/urls/{short_code}` | Get URL details by short code | ✅ Yes |
 | **URLs** | `PUT` | `/urls/{short_code}` | Update URL target, domain, or expiry | ✅ Yes |
 | **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✅ Yes |
@@ -79,6 +81,25 @@ Returns the health status of the application and its connected datasources (e.g.
       "details": {
         "mongoDB": "UP"
       }
+    }
+  }
+  ```
+
+---
+
+### `GET /api/status`
+Returns global platform metrics and system statistics.
+
+- **Authentication**: None
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": {
+      "version": "2.0.0",
+      "status": "OPERATIONAL",
+      "total_urls": 150,
+      "total_clicks": 1250,
+      "total_users": 12
     }
   }
   ```
@@ -270,14 +291,14 @@ Creates a shortened URL.
     "original_url": "https://gofr.dev",
     "custom_code": "my-code",
     "public": true,
-    "custom_domain": "sksm.tech",
+    "custom_domain": "my.tech",
     "expires_at": "2028-12-31T23:59:59Z"
   }
   ```
   - `original_url` *(string, **Required**)*: Valid HTTP or HTTPS target URL.
   - `custom_code` *(string, Optional)*: Custom short code alias (3–64 alphanumeric characters). Auto-generated 6-char random code if omitted.
   - `public` *(boolean, Optional, default: `false`)*: Link visibility permissions (`true` = public redirect, `false` = owner auth required).
-  - `custom_domain` *(string, Optional)*: Custom branded domain (e.g. `sksm.tech` or `short.domain.com`).
+  - `custom_domain` *(string, Optional)*: Custom branded domain (e.g. `my.tech` or `short.domain.com`).
   - `expires_at` *(string RFC3339 date-time, Optional)*: UTC expiration timestamp.
 
 - **Response `201 Created`**:
@@ -289,11 +310,11 @@ Creates a shortened URL.
       "short_code": "my-code",
       "user_id": "607f1f77bcf86cd799439012",
       "public": true,
-      "custom_domain": "sksm.tech",
+      "custom_domain": "my.tech",
       "expires_at": "2028-12-31T23:59:59Z",
       "total_clicks": 0,
       "unique_clicks": 0,
-      "short_url": "https://sksm.tech/my-code",
+      "short_url": "https://my.tech/my-code",
       "created_at": "2026-08-26T12:00:00Z",
       "updated_at": "2026-08-26T12:00:00Z"
     }
@@ -322,10 +343,10 @@ Lists all URLs owned by the authenticated user with pagination and sorting.
         "original_url": "https://gofr.dev",
         "short_code": "my-code",
         "public": true,
-        "custom_domain": "sksm.tech",
+        "custom_domain": "my.tech",
         "total_clicks": 42,
         "unique_clicks": 35,
-        "short_url": "https://sksm.tech/my-code",
+        "short_url": "https://my.tech/my-code",
         "created_at": "2026-08-26T12:00:00Z"
       }
     ],
@@ -338,6 +359,38 @@ Lists all URLs owned by the authenticated user with pagination and sorting.
   }
   ```
 - **Errors**: `401 Unauthorized`.
+
+---
+
+### `GET /urls/public`
+Lists all public community links for guest visitors without requiring authentication.
+
+- **Authentication**: None
+- **Query Parameters**:
+  - `page` *(integer, Optional, default: `1`)*: Page number.
+  - `limit` *(integer, Optional, default: `10`, max: `100`)*: Number of items per page.
+
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": [
+      {
+        "id": "607f1f77bcf86cd799439011",
+        "original_url": "https://gofr.dev",
+        "short_code": "gofr-docs",
+        "public": true,
+        "short_url": "http://localhost:8000/gofr-docs",
+        "created_at": "2026-08-26T12:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 1,
+      "total_pages": 1
+    }
+  }
+  ```
 
 ---
 
@@ -357,10 +410,10 @@ Retrieves URL details for a specific URL owned by the authenticated user.
       "short_code": "my-code",
       "user_id": "607f1f77bcf86cd799439012",
       "public": true,
-      "custom_domain": "sksm.tech",
+      "custom_domain": "my.tech",
       "total_clicks": 42,
       "unique_clicks": 35,
-      "short_url": "https://sksm.tech/my-code",
+      "short_url": "https://my.tech/my-code",
       "created_at": "2026-08-26T12:00:00Z",
       "updated_at": "2026-08-26T12:00:00Z"
     }
@@ -545,7 +598,7 @@ Generates a dynamic QR code for any shortened link. By default, returns raw PNG 
   {
     "data": {
       "short_code": "my-code",
-      "short_url": "https://sksm.tech/my-code",
+      "short_url": "https://my.tech/my-code",
       "qr_code_base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
     }
   }

@@ -45,8 +45,9 @@ func main() {
 	userStore := store.NewUserStoreWithMongo(db)
 	app.UseMiddleware(auth.AuthMiddleware(os.Getenv("JWT_SECRET"), userStore))
 
-	// Health check endpoint
+	// Health & status endpoints
 	app.GET("/health", handler.HealthHandler())
+	app.GET("/api/status", handler.StatusHandler())
 
 	userService := service.NewUserService(userStore, os.Getenv("JWT_SECRET"))
 	userHandler := handler.NewUserHandler(userService)

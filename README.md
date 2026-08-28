@@ -140,7 +140,7 @@ http://localhost:8000/.well-known/swagger
   "short_code": "my-code",
   "user_id": "ObjectIdHex",
   "public": true,
-  "custom_domain": "sksm.tech",
+  "custom_domain": "my.tech",
   "expires_at": "2028-12-31T23:59:59Z",
   "total_clicks": 42,
   "unique_clicks": 35,

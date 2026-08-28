@@ -55,6 +55,18 @@
         }
       }
     },
+    "/api/status": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Platform System Status",
+        "description": "Returns global platform metrics, service version, total URLs, total clicks, and total active users.",
+        "responses": {
+          "200": {
+            "description": "Global status metrics retrieved successfully"
+          }
+        }
+      }
+    },
     "/users/register": {
       "post": {
         "tags": ["Users"],
@@ -300,6 +312,37 @@
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/urls/public": {
+      "get": {
+        "tags": ["URLs"],
+        "summary": "List Public Links (Guest Community Feed)",
+        "description": "Lists all public community links for guest visitors without requiring authentication.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "(Optional) Page number (default: 1)",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "(Optional) Items per page (default: 10, max: 100)",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of public community URLs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UrlListResponse" }
+              }
+            }
+          }
         }
       }
     },
@@ -697,7 +740,7 @@
           "original_url": { "type": "string", "format": "uri", "example": "https://gofr.dev", "description": "(Required) Target destination URL to shorten" },
           "custom_code": { "type": "string", "example": "my-code", "description": "(Optional) Custom short code alias (3-64 chars)" },
           "public": { "type": "boolean", "default": false, "example": true, "description": "(Optional) Link visibility (true: public redirect without auth, false: requires owner auth)" },
-          "custom_domain": { "type": "string", "example": "sksm.tech", "description": "(Optional) Custom branded domain for short URL" },
+          "custom_domain": { "type": "string", "example": "my.tech", "description": "(Optional) Custom branded domain for short URL" },
           "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z", "description": "(Optional) UTC expiration date-time" }
         }
       },
@@ -737,11 +780,11 @@
           "short_code": { "type": "string", "example": "my-code" },
           "user_id": { "type": "string", "example": "607f1f77bcf86cd799439012" },
           "public": { "type": "boolean", "example": true },
-          "custom_domain": { "type": "string", "example": "sksm.tech" },
+          "custom_domain": { "type": "string", "example": "my.tech" },
           "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z" },
           "total_clicks": { "type": "integer", "format": "int64", "example": 42 },
           "unique_clicks": { "type": "integer", "format": "int64", "example": 35 },
-          "short_url": { "type": "string", "format": "uri", "example": "https://sksm.tech/my-code" },
+          "short_url": { "type": "string", "format": "uri", "example": "https://my.tech/my-code" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }

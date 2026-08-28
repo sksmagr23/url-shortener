@@ -388,13 +388,13 @@ func TestURLServiceCreateWithCustomDomain(t *testing.T) {
 	}, "user-1", service.URLCreateInput{
 		Original:     "https://example.com/test",
 		CustomCode:   "my-code",
-		CustomDomain: "sksm.tech",
+		CustomDomain: "my.tech",
 	})
 
 	assert.NoError(t, err)
 	assert.Equal(t, "my-code", result.ShortCode)
-	assert.Equal(t, "sksm.tech", result.CustomDomain)
-	assert.Equal(t, "https://sksm.tech/my-code", result.ShortURL)
+	assert.Equal(t, "my.tech", result.CustomDomain)
+	assert.Equal(t, "https://my.tech/my-code", result.ShortURL)
 }
 
 func TestURLServiceUpdateCustomDomain(t *testing.T) {
