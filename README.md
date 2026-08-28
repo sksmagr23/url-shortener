@@ -31,6 +31,7 @@ A high-performance backend service for URL shortening, link lifecycle management
 - **Custom Aliases & Auto Generation**: Generate short 6-character random links or specify custom memorable aliases (3–64 characters) with real-time collision checks.
 - **Custom Branded Domains**: Support custom short domains (e.g. `me.tech/my-code` or `short.brand.com/my-code`) with domain normalization and HTTP/HTTPS protocol formatting.
 - **Link Expiration**: Set UTC expiration timestamps (`expires_at`) for temporary links. Expired links reject redirects with HTTP 404. Expiry dates can be updated or cleared.
+- **Link Versioning & Rollback**: Track destination URL changes over time for same short codes and restore any previous destination with a single click.
 - **Public & Private Visibility**: Public links redirect any visitor; private links restrict redirection strictly to the link owner via JWT.
 - **Dynamic QR Code Generation**: Allow generating high-resolution PNG image bytes of short urls for instant UI embedding or mobile scanning.
 - **URL Management**: Endpoints to create, retrieve details, update target URLs or settings, delete links, and list owned URLs with pagination and sorting.
@@ -134,57 +135,6 @@ Detailed RESTful API specifications, headers, request/response schemas, and para
 Alternatively, when the application is running, you can access the interactive Swagger UI at:
 ```text
 http://localhost:8000/.well-known/swagger
-```
-
----
-
-## Database Schemas (MongoDB)
-
-### `users` Collection
-```json
-{
-  "_id": "ObjectIdHex",
-  "username": "testuser",
-  "email": "test@example.com",
-  "password_hash": "$2a$10$...",
-  "api_keys": ["usk_..."],
-  "created_at": "2026-06-01T00:00:00Z",
-  "updated_at": "2026-06-01T00:00:00Z"
-}
-```
-
-### `urls` Collection
-```json
-{
-  "_id": "ObjectIdHex",
-  "original_url": "https://gofr.dev",
-  "short_code": "my-code",
-  "user_id": "ObjectIdHex",
-  "public": true,
-  "custom_domain": "my.tech",
-  "expires_at": "2028-12-31T23:59:59Z",
-  "total_clicks": 42,
-  "unique_clicks": 35,
-  "created_at": "2026-06-01T00:00:00Z",
-  "updated_at": "2026-06-01T00:00:00Z"
-}
-```
-
-### `click_events` Collection
-```json
-{
-  "_id": "ObjectIdHex",
-  "url_id": "ObjectIdHex",
-  "short_code": "my-code",
-  "timestamp": "2026-08-26T12:00:00Z",
-  "ip_address": "203.0.113.195",
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...",
-  "browser": "Chrome",
-  "os": "Windows",
-  "device_type": "Desktop",
-  "country": "US",
-  "referrer": "https://google.com"
-}
 ```
 
 ---

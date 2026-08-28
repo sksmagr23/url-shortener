@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sort"
 	"strings"
@@ -57,6 +58,8 @@ type URLService interface {
 	GetAnalyticsTimeseries(ctx *gofr.Context, userID, code, unit string, limit int) (*model.AnalyticsTimeseriesResponse, error)
 	GetQRCode(ctx *gofr.Context, userID, code string, size int) (*QRCodeResponse, error)
 	ListPublic(ctx *gofr.Context, options model.URLListOptions) (*model.URLListResult, error)
+	ListVersions(ctx *gofr.Context, userID, code string) (*model.URLVersionHistory, error)
+	RollbackVersion(ctx *gofr.Context, userID, code string, targetVersion int) (*model.URL, error)
 }
 
 type URLCreateInput struct {
@@ -101,18 +104,33 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreat
 	}
 
 	url := &model.URL{
-		Original:     input.Original,
-		ShortCode:    code,
-		UserID:       userID,
-		Public:       input.Public,
-		CustomDomain: domain,
-		ExpiresAt:    input.ExpiresAt,
+		Original:       input.Original,
+		ShortCode:      code,
+		UserID:         userID,
+		Public:         input.Public,
+		CustomDomain:   domain,
+		ExpiresAt:      input.ExpiresAt,
+		CurrentVersion: 1,
 	}
 	url.ShortURL = s.shortURL(url)
 	err := s.Store.Insert(ctx, url)
 	if err != nil {
 		return nil, err
 	}
+
+	_ = s.Store.SaveVersion(ctx, &model.URLVersion{
+		URLID:        url.ID,
+		ShortCode:    url.ShortCode,
+		Version:      1,
+		Original:     url.Original,
+		CustomDomain: url.CustomDomain,
+		Public:       url.Public,
+		ExpiresAt:    url.ExpiresAt,
+		ChangedBy:    userID,
+		ChangeReason: "Initial creation",
+		CreatedAt:    time.Now().UTC(),
+	})
+
 	return url, nil
 }
 
@@ -226,6 +244,16 @@ func (s *URLServiceImpl) Update(ctx *gofr.Context, userID, code string, input UR
 		customDomainPtr = &norm
 	}
 
+	existing, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	newVersionNumber := existing.CurrentVersion + 1
+	if newVersionNumber <= 1 {
+		newVersionNumber = 2
+	}
+
 	url, err := s.Store.UpdateByShortCode(ctx, userID, code, model.URLUpdate{
 		Original:          input.Original,
 		Public:            input.Public,
@@ -237,6 +265,22 @@ func (s *URLServiceImpl) Update(ctx *gofr.Context, userID, code string, input UR
 	if err != nil {
 		return nil, err
 	}
+
+	url.CurrentVersion = newVersionNumber
+	_ = s.Store.UpdateOneField(ctx, userID, code, "current_version", newVersionNumber)
+
+	_ = s.Store.SaveVersion(ctx, &model.URLVersion{
+		URLID:        url.ID,
+		ShortCode:    url.ShortCode,
+		Version:      newVersionNumber,
+		Original:     url.Original,
+		CustomDomain: url.CustomDomain,
+		Public:       url.Public,
+		ExpiresAt:    url.ExpiresAt,
+		ChangedBy:    userID,
+		ChangeReason: "URL update",
+		CreatedAt:    time.Now().UTC(),
+	})
 
 	if s.Cache != nil {
 		_ = s.Cache.DeleteURL(ctx, code)
@@ -521,4 +565,91 @@ func (s *URLServiceImpl) GetQRCode(ctx *gofr.Context, userID, code string, size 
 		QRCodeBase64: base64Str,
 		PNGBytes:     pngBytes,
 	}, nil
+}
+
+func (s *URLServiceImpl) ListVersions(ctx *gofr.Context, userID, code string) (*model.URLVersionHistory, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
+
+	url, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	versions, err := s.Store.GetVersionsByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range versions {
+		if v.Version == url.CurrentVersion {
+			v.IsCurrent = true
+		}
+	}
+
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].Version > versions[j].Version
+	})
+
+	return &model.URLVersionHistory{
+		ShortCode:      code,
+		CurrentVersion: url.CurrentVersion,
+		Versions:       versions,
+	}, nil
+}
+
+func (s *URLServiceImpl) RollbackVersion(ctx *gofr.Context, userID, code string, targetVersion int) (*model.URL, error) {
+	if userID == "" {
+		return nil, unauthorized("missing authenticated user")
+	}
+
+	url, err := s.Store.FindByShortCode(ctx, userID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	targetVer, err := s.Store.GetVersionByNumber(ctx, code, targetVersion)
+	if err != nil {
+		return nil, badRequest(fmt.Sprintf("version %d not found for code '%s'", targetVersion, code))
+	}
+
+	newVersionNumber := url.CurrentVersion + 1
+	if newVersionNumber <= targetVersion {
+		newVersionNumber = targetVersion + 1
+	}
+
+	updatedURL, err := s.Store.UpdateByShortCode(ctx, userID, code, model.URLUpdate{
+		Original:     targetVer.Original,
+		Public:       &targetVer.Public,
+		CustomDomain: &targetVer.CustomDomain,
+		ExpiresAt:    targetVer.ExpiresAt,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updatedURL.CurrentVersion = newVersionNumber
+	_ = s.Store.UpdateOneField(ctx, userID, code, "current_version", newVersionNumber)
+
+	_ = s.Store.SaveVersion(ctx, &model.URLVersion{
+		URLID:        updatedURL.ID,
+		ShortCode:    code,
+		Version:      newVersionNumber,
+		Original:     targetVer.Original,
+		CustomDomain: targetVer.CustomDomain,
+		Public:       targetVer.Public,
+		ExpiresAt:    targetVer.ExpiresAt,
+		ChangedBy:    userID,
+		ChangeReason: fmt.Sprintf("Rolled back to version %d", targetVersion),
+		CreatedAt:    time.Now().UTC(),
+	})
+
+	if s.Cache != nil {
+		_ = s.Cache.DeleteURL(ctx, code)
+	}
+
+	updatedURL.ShortURL = s.shortURL(updatedURL)
+
+	return updatedURL, nil
 }

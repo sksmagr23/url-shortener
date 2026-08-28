@@ -60,6 +60,8 @@ All endpoints enforce sliding-window rate limiting (100 requests per minute per 
 | **URLs** | `GET` | `/urls/{short_code}` | Get URL details by short code | ✓ |
 | **URLs** | `PUT` | `/urls/{short_code}` | Update URL target, domain, or expiry | ✓ |
 | **URLs** | `DELETE` | `/urls/{short_code}` | Delete an owned short URL | ✓ |
+| **Versioning** | `GET` | `/urls/{short_code}/versions` | List immutable audit history of link versions | ✓ |
+| **Versioning** | `POST` | `/urls/{short_code}/rollback/{version}` | Rollback destination target to a historical version | ✓ |
 | **Analytics** | `GET` | `/urls/{short_code}/analytics` | Detailed click summary breakdown | ✓ |
 | **Analytics** | `GET` | `/urls/{short_code}/analytics/timeseries` | Timeseries click aggregation | ✓ |
 | **QR Code** | `GET` | `/urls/{short_code}/qr` | Generate dynamic QR code image or base64 JSON | ⚠️ Public / Owner |
@@ -604,3 +606,80 @@ Generates a dynamic QR code for any shortened link. By default, returns raw PNG 
   }
   ```
 - **Errors**: `400 Bad Request`, `401 Unauthorized`, `404 Not Found`.
+
+---
+
+## 8. Link Versioning & Rollback Audit Engine
+
+### `GET /urls/{short_code}/versions`
+Retrieves the complete, immutable audit trail of historical versions for an owned short link.
+
+- **Authentication**: Required (`Bearer <jwt_token>` or `X-API-Key`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": {
+      "short_code": "promo",
+      "current_version": 3,
+      "versions": [
+        {
+          "version": 3,
+          "original_url": "https://site.com/c",
+          "public": true,
+          "changed_by": "user_123",
+          "change_reason": "URL update",
+          "created_at": "2026-08-28T10:50:00Z",
+          "is_current": true
+        },
+        {
+          "version": 2,
+          "original_url": "https://site.com/b",
+          "public": true,
+          "changed_by": "user_123",
+          "change_reason": "URL update",
+          "created_at": "2026-08-28T10:30:00Z",
+          "is_current": false
+        },
+        {
+          "version": 1,
+          "original_url": "https://site.com/a",
+          "public": true,
+          "changed_by": "user_123",
+          "change_reason": "Initial creation",
+          "created_at": "2026-08-28T10:00:00Z",
+          "is_current": false
+        }
+      ]
+    }
+  }
+  ```
+- **Errors**: `401 Unauthorized`, `404 Not Found`.
+
+---
+
+### `POST /urls/{short_code}/rollback/{version}`
+Rolls back the target URL destination to a specified historical version number. Preserves immutable audit history by creating a new version entry whose target matches the historical version.
+
+- **Authentication**: Required (`Bearer <jwt_token>` or `X-API-Key`)
+- **Path Parameters**:
+  - `short_code` *(string, **Required**)*: Short code identifier.
+  - `version` *(integer, **Required**)*: Target historical version number to restore (e.g. `1`).
+
+- **Response `200 OK`**:
+  ```json
+  {
+    "data": {
+      "id": "607f1f77bcf86cd799439011",
+      "original_url": "https://site.com/a",
+      "short_code": "promo",
+      "current_version": 4,
+      "public": true,
+      "short_url": "http://localhost:8000/promo",
+      "updated_at": "2026-08-28T11:00:00Z"
+    }
+  }
+  ```
+- **Errors**: `400 Bad Request` (version not found), `401 Unauthorized`, `404 Not Found`.

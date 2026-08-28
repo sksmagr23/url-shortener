@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gofr.dev/pkg/gofr"
 	"gofr.dev/pkg/gofr/container"
@@ -108,6 +107,22 @@ func (m *MockURLService) ListPublic(ctx *gofr.Context, options model.URLListOpti
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*model.URLListResult), args.Error(1)
+}
+
+func (m *MockURLService) ListVersions(ctx *gofr.Context, userID, code string) (*model.URLVersionHistory, error) {
+	args := m.Called(ctx, userID, code)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URLVersionHistory), args.Error(1)
+}
+
+func (m *MockURLService) RollbackVersion(ctx *gofr.Context, userID, code string, targetVersion int) (*model.URL, error) {
+	args := m.Called(ctx, userID, code, targetVersion)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.URL), args.Error(1)
 }
 
 func TestURLCreateHandler(t *testing.T) {
@@ -446,23 +461,29 @@ func TestURLServiceIntegration(t *testing.T) {
 
 	mocks.Mongo.EXPECT().InsertOne(
 		gomock.Any(),
-		"urls",
 		gomock.Any(),
-	).Return("test-id", nil)
+		gomock.Any(),
+	).Return("test-id", nil).AnyTimes()
 
+	var createdCode string
 	mocks.Mongo.EXPECT().FindOne(
 		gomock.Any(),
 		"urls",
 		gomock.Any(),
 		gomock.Any(),
-	).Return(mongo.ErrNoDocuments)
-
-	mocks.Mongo.EXPECT().FindOne(
-		gomock.Any(),
-		"urls",
-		bson.M{"short_code": "test123", "user_id": "user-1"},
-		gomock.Any(),
-	).Return(nil)
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		if createdCode == "" {
+			return mongo.ErrNoDocuments
+		}
+		u, ok := res.(*model.URL)
+		if ok {
+			u.ShortCode = createdCode
+			u.Original = "https://example.com/test"
+			u.UserID = "user-1"
+			return nil
+		}
+		return mongo.ErrNoDocuments
+	}).AnyTimes()
 
 	ctx := &gofr.Context{
 		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
@@ -475,8 +496,9 @@ func TestURLServiceIntegration(t *testing.T) {
 	assert.Equal(t, "https://example.com/test", createdURL.Original)
 	assert.NotEmpty(t, createdURL.ShortCode)
 	assert.NotEmpty(t, createdURL.ShortURL)
+	createdCode = createdURL.ShortCode
 
-	retrievedURL, err := urlService.GetByShortCode(ctx, "user-1", "test123")
+	retrievedURL, err := urlService.GetByShortCode(ctx, "user-1", createdCode)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedURL)
 	retrievedURL.Original = testURL.Original

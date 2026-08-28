@@ -179,3 +179,54 @@ func (s *URLStore) IncrementClicks(ctx *gofr.Context, code string, isUnique bool
 		"$set": bson.M{"updated_at": time.Now().UTC()},
 	})
 }
+
+func (s *URLStore) UpdateOneField(ctx *gofr.Context, userID, code, field string, value interface{}) error {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return errors.New("mongodb datasource is not available")
+	}
+	return m.UpdateOne(ctx, "urls", bson.M{"short_code": code, "user_id": userID}, bson.M{
+		"$set": bson.M{field: value, "updated_at": time.Now().UTC()},
+	})
+}
+
+func (s *URLStore) SaveVersion(ctx *gofr.Context, ver *model.URLVersion) error {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return errors.New("mongodb datasource is not available")
+	}
+	if ver.ID == "" {
+		ver.ID = primitive.NewObjectID().Hex()
+	}
+	if ver.CreatedAt.IsZero() {
+		ver.CreatedAt = time.Now().UTC()
+	}
+	_, err := m.InsertOne(ctx, "url_versions", ver)
+	return err
+}
+
+func (s *URLStore) GetVersionsByCode(ctx *gofr.Context, shortCode string) ([]*model.URLVersion, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
+	var versions []*model.URLVersion
+	err := m.Find(ctx, "url_versions", bson.M{"short_code": shortCode}, &versions)
+	if err != nil {
+		return nil, err
+	}
+	return versions, nil
+}
+
+func (s *URLStore) GetVersionByNumber(ctx *gofr.Context, shortCode string, version int) (*model.URLVersion, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
+	var versions []*model.URLVersion
+	err := m.Find(ctx, "url_versions", bson.M{"short_code": shortCode, "version": version}, &versions)
+	if err != nil || len(versions) == 0 {
+		return nil, errors.New("specified version not found")
+	}
+	return versions[0], nil
+}
