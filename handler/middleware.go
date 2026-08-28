@@ -18,17 +18,26 @@ func MetadataMiddleware() func(http.Handler) http.Handler {
 			uaInfo := service.ParseUserAgent(ua)
 			referer := r.Header.Get("Referer")
 
+			idempotencyKey := r.Header.Get("Idempotency-Key")
+			if idempotencyKey == "" {
+				idempotencyKey = r.Header.Get("X-Idempotency-Key")
+			}
+
 			meta := auth.RequestMetadata{
-				IPAddress:  ip,
-				UserAgent:  ua,
-				Referrer:   referer,
-				Browser:    uaInfo.Browser,
-				OS:         uaInfo.OS,
-				DeviceType: uaInfo.DeviceType,
-				Country:    country,
+				IPAddress:      ip,
+				UserAgent:      ua,
+				Referrer:       referer,
+				Browser:        uaInfo.Browser,
+				OS:             uaInfo.OS,
+				DeviceType:     uaInfo.DeviceType,
+				Country:        country,
+				IdempotencyKey: idempotencyKey,
 			}
 
 			ctx := auth.ContextWithMetadata(r.Context(), meta)
+			if idempotencyKey != "" {
+				ctx = auth.ContextWithIdempotencyKey(ctx, idempotencyKey)
+			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

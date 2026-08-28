@@ -216,6 +216,46 @@ func TestURLCreateHandler(t *testing.T) {
 	}
 }
 
+func TestURLCreateHandlerWithIdempotency(t *testing.T) {
+	mockContainer, _ := container.NewMockContainer(t)
+	mockService := &MockURLService{}
+
+	mockURL := &model.URL{
+		ID:        "idem-id",
+		Original:  "https://example.com/test",
+		ShortCode: "idem12",
+		ShortURL:  "http://localhost:8000/idem12",
+	}
+
+	mockService.On("Create", mock.Anything, "user-1", mock.MatchedBy(func(input service.URLCreateInput) bool {
+		return input.IdempotencyKey == "key-999" && input.Original == "https://example.com/test"
+	})).Return(mockURL, nil)
+
+	urlHandler := &handler.URLHandler{Service: mockService}
+
+	requestBody, _ := json.Marshal(map[string]string{
+		"original_url":    "https://example.com/test",
+		"idempotency_key": "key-999",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/urls", bytes.NewBuffer(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	request := gofrHttp.NewRequest(req)
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Request:   request,
+		Container: mockContainer,
+	}
+
+	result, err := urlHandler.Create(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	url, ok := result.(*model.URL)
+	assert.True(t, ok)
+	assert.Equal(t, "idem12", url.ShortCode)
+	mockService.AssertExpectations(t)
+}
+
 func TestURLGetHandler(t *testing.T) {
 	tests := []struct {
 		name           string

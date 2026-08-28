@@ -75,6 +75,18 @@
         "referrer": { "type": "string", "example": "https://google.com" }
       },
       "required": ["_id", "short_code", "timestamp", "ip_address"]
+    },
+    "idempotency_keys": {
+      "description": "Stores idempotency key records to guarantee exactly-once URL creation semantics and prevent duplicate links on retries or network timeouts",
+      "type": "object",
+      "properties": {
+        "_id": { "type": "string", "example": "607f1f77bcf86cd799439015" },
+        "key": { "type": "string", "example": "8f72a1e4-5b23-4c92-b42d-f9e23b0d1a4c" },
+        "user_id": { "type": "string", "example": "607f1f77bcf86cd799439011" },
+        "url": { "$ref": "#/collections/urls" },
+        "created_at": { "type": "string", "format": "date-time", "example": "2026-08-28T12:00:00Z" }
+      },
+      "required": ["_id", "key", "user_id", "url", "created_at"]
     }
   }
 }

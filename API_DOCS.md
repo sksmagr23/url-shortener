@@ -284,9 +284,11 @@ Revokes an active API key.
 ## 4. URL Management Endpoints
 
 ### `POST /urls`
-Creates a shortened URL.
+Creates a shortened URL. Supports the **`Idempotency-Key`** header to guarantee exactly-once link creation on network retries.
 
-- **Authentication**: Required (`Bearer <jwt_token>`)
+- **Authentication**: Required (`Bearer <jwt_token>` or `X-API-Key`)
+- **Headers**:
+  - `Idempotency-Key` *(string, Optional, e.g. `8f72a1e4-5b23-4c92...`)*: Unique token to prevent duplicate URL creation if a network retry occurs.
 - **Request Body**:
   ```json
   {
@@ -294,7 +296,8 @@ Creates a shortened URL.
     "custom_code": "my-code",
     "public": true,
     "custom_domain": "my.tech",
-    "expires_at": "2028-12-31T23:59:59Z"
+    "expires_at": "2028-12-31T23:59:59Z",
+    "idempotency_key": "optional-idempotency-key"
   }
   ```
   - `original_url` *(string, **Required**)*: Valid HTTP or HTTPS target URL.
@@ -302,6 +305,7 @@ Creates a shortened URL.
   - `public` *(boolean, Optional, default: `false`)*: Link visibility permissions (`true` = public redirect, `false` = owner auth required).
   - `custom_domain` *(string, Optional)*: Custom branded domain (e.g. `my.tech` or `short.domain.com`).
   - `expires_at` *(string RFC3339 date-time, Optional)*: UTC expiration timestamp.
+  - `idempotency_key` *(string, Optional)*: Can alternatively be provided in request body or header.
 
 - **Response `201 Created`**:
   ```json
