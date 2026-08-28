@@ -29,21 +29,32 @@ func (h *URLHandler) Create(ctx *gofr.Context) (interface{}, error) {
 	}
 
 	var req struct {
-		OriginalURL  string     `json:"original_url"`
-		CustomCode   string     `json:"custom_code"`
-		Public       bool       `json:"public"`
-		CustomDomain string     `json:"custom_domain"`
-		ExpiresAt    *time.Time `json:"expires_at"`
+		OriginalURL    string     `json:"original_url"`
+		CustomCode     string     `json:"custom_code"`
+		Public         bool       `json:"public"`
+		CustomDomain   string     `json:"custom_domain"`
+		ExpiresAt      *time.Time `json:"expires_at"`
+		IdempotencyKey string     `json:"idempotency_key"`
 	}
 	if err := ctx.Bind(&req); err != nil {
 		return nil, err
 	}
+
+	idempotencyKey := auth.IdempotencyKeyFromContext(ctx.Context)
+	if idempotencyKey == "" {
+		idempotencyKey = req.IdempotencyKey
+	}
+	if idempotencyKey == "" {
+		idempotencyKey = ctx.Param("idempotency_key")
+	}
+
 	url, err := h.Service.Create(ctx, userID, service.URLCreateInput{
-		Original:     req.OriginalURL,
-		CustomCode:   req.CustomCode,
-		Public:       req.Public,
-		CustomDomain: req.CustomDomain,
-		ExpiresAt:    req.ExpiresAt,
+		Original:       req.OriginalURL,
+		CustomCode:     req.CustomCode,
+		Public:         req.Public,
+		CustomDomain:   req.CustomDomain,
+		ExpiresAt:      req.ExpiresAt,
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return nil, err

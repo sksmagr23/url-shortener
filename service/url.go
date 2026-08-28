@@ -63,11 +63,12 @@ type URLService interface {
 }
 
 type URLCreateInput struct {
-	Original     string
-	CustomCode   string
-	Public       bool
-	CustomDomain string
-	ExpiresAt    *time.Time
+	Original       string
+	CustomCode     string
+	Public         bool
+	CustomDomain   string
+	ExpiresAt      *time.Time
+	IdempotencyKey string
 }
 
 type URLUpdateInput struct {
@@ -85,6 +86,31 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreat
 	}
 	if !isHTTPURL(input.Original) {
 		return nil, badRequest("invalid URL")
+	}
+
+	// If idempotency key is provided, check if we already processed this request
+	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
+	if idempotencyKey != "" {
+		// 1. Fast lookup via Redis cache
+		if s.Cache != nil {
+			cachedURL, err := s.Cache.GetIdempotency(ctx, userID, idempotencyKey)
+			if err == nil && cachedURL != nil {
+				cachedURL.ShortURL = s.shortURL(cachedURL)
+				return cachedURL, nil
+			}
+		}
+
+		// 2. Persistent fallback via MongoDB
+		if s.Store != nil {
+			storedURL, err := s.Store.FindIdempotencyKey(ctx, userID, idempotencyKey)
+			if err == nil && storedURL != nil {
+				storedURL.ShortURL = s.shortURL(storedURL)
+				if s.Cache != nil {
+					_ = s.Cache.SetIdempotency(ctx, userID, idempotencyKey, storedURL, 24*time.Hour)
+				}
+				return storedURL, nil
+			}
+		}
 	}
 
 	domain := normalizeDomain(input.CustomDomain)
@@ -130,6 +156,21 @@ func (s *URLServiceImpl) Create(ctx *gofr.Context, userID string, input URLCreat
 		ChangeReason: "Initial creation",
 		CreatedAt:    time.Now().UTC(),
 	})
+
+	// If idempotency key was supplied, save record for future duplicate request deduplication
+	if idempotencyKey != "" {
+		if s.Cache != nil {
+			_ = s.Cache.SetIdempotency(ctx, userID, idempotencyKey, url, 24*time.Hour)
+		}
+		if s.Store != nil {
+			_ = s.Store.SaveIdempotencyKey(ctx, &model.IdempotencyRecord{
+				Key:       idempotencyKey,
+				UserID:    userID,
+				URL:       url,
+				CreatedAt: time.Now().UTC(),
+			})
+		}
+	}
 
 	return url, nil
 }

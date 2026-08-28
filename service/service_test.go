@@ -711,3 +711,129 @@ func TestURLServiceGetQRCode(t *testing.T) {
 	assert.True(t, len(qrResp.PNGBytes) > 0)
 	assert.True(t, len(qrResp.QRCodeBase64) > 0)
 }
+
+func TestURLServiceCreateWithIdempotencyRedisHit(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlCache := store.NewURLCache()
+	urlService := service.NewURLService(urlStore, nil, urlCache, "http://localhost:8000/")
+
+	cachedURLJSON := `{"id":"existing-id","original_url":"https://gofr.dev","short_code":"idem-123","user_id":"user-1","current_version":1}`
+	mocks.Redis.EXPECT().Get(gomock.Any(), "idempotency:user-1:key-123").Return(redis.NewStringResult(cachedURLJSON, nil))
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}
+
+	result, err := urlService.Create(ctx, "user-1", service.URLCreateInput{
+		Original:       "https://gofr.dev",
+		IdempotencyKey: "key-123",
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "idem-123", result.ShortCode)
+	assert.Equal(t, "http://localhost:8000/idem-123", result.ShortURL)
+}
+
+func TestURLServiceCreateWithIdempotencyMongoHit(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlCache := store.NewURLCache()
+	urlService := service.NewURLService(urlStore, nil, urlCache, "http://localhost:8000/")
+
+	// Redis cache miss
+	mocks.Redis.EXPECT().Get(gomock.Any(), "idempotency:user-1:key-456").Return(redis.NewStringResult("", redis.Nil))
+
+	// Mongo hit on idempotency_keys
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"idempotency_keys",
+		bson.M{"user_id": "user-1", "key": "key-456"},
+		gomock.Any(),
+	).DoAndReturn(func(ctx interface{}, coll string, filter interface{}, res interface{}) error {
+		rec, ok := res.(*model.IdempotencyRecord)
+		if ok {
+			rec.Key = "key-456"
+			rec.UserID = "user-1"
+			rec.URL = &model.URL{
+				ID:             "mongo-url-id",
+				Original:       "https://gofr.dev/docs",
+				ShortCode:      "mongo-code",
+				UserID:         "user-1",
+				CurrentVersion: 1,
+			}
+		}
+		return nil
+	})
+
+	// Redis set on cache populate
+	mocks.Redis.EXPECT().Set(gomock.Any(), "idempotency:user-1:key-456", gomock.Any(), 24*time.Hour).Return(redis.NewStatusResult("OK", nil))
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}
+
+	result, err := urlService.Create(ctx, "user-1", service.URLCreateInput{
+		Original:       "https://gofr.dev/docs",
+		IdempotencyKey: "key-456",
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "mongo-code", result.ShortCode)
+	assert.Equal(t, "http://localhost:8000/mongo-code", result.ShortURL)
+}
+
+func TestURLServiceCreateWithIdempotencyFirstTime(t *testing.T) {
+	mockContainer, mocks := container.NewMockContainer(t)
+	urlStore := store.NewURLStore()
+	urlCache := store.NewURLCache()
+	urlService := service.NewURLService(urlStore, nil, urlCache, "http://localhost:8000/")
+
+	// Redis miss
+	mocks.Redis.EXPECT().Get(gomock.Any(), "idempotency:user-1:key-new").Return(redis.NewStringResult("", redis.Nil))
+
+	// Mongo miss on idempotency_keys
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"idempotency_keys",
+		bson.M{"user_id": "user-1", "key": "key-new"},
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+
+	// ensureShortCodeAvailable
+	mocks.Mongo.EXPECT().FindOne(
+		gomock.Any(),
+		"urls",
+		gomock.Any(),
+		gomock.Any(),
+	).Return(mongo.ErrNoDocuments)
+
+	// Insert into urls, url_versions, idempotency_keys
+	mocks.Mongo.EXPECT().InsertOne(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).Return("new-id", nil).AnyTimes()
+
+	// Redis set on new url
+	mocks.Redis.EXPECT().Set(gomock.Any(), "idempotency:user-1:key-new", gomock.Any(), 24*time.Hour).Return(redis.NewStatusResult("OK", nil))
+
+	ctx := &gofr.Context{
+		Context:   auth.ContextWithUserID(context.Background(), "user-1"),
+		Container: mockContainer,
+	}
+
+	result, err := urlService.Create(ctx, "user-1", service.URLCreateInput{
+		Original:       "https://google.com",
+		IdempotencyKey: "key-new",
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.ShortCode)
+	assert.Equal(t, "https://google.com", result.Original)
+}

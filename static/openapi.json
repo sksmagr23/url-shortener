@@ -253,6 +253,15 @@
         "summary": "Create Short URL",
         "description": "Creates a short URL for the provided target URL. Supports custom short codes, custom branded domains, public/private visibility, and expiry timestamps.",
         "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Unique client token (e.g. UUID) guaranteeing idempotent link creation on retries",
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -841,7 +850,8 @@
           "custom_code": { "type": "string", "example": "my-code", "description": "(Optional) Custom short code alias (3-64 chars)" },
           "public": { "type": "boolean", "default": false, "example": true, "description": "(Optional) Link visibility (true: public redirect without auth, false: requires owner auth)" },
           "custom_domain": { "type": "string", "example": "my.tech", "description": "(Optional) Custom branded domain for short URL" },
-          "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z", "description": "(Optional) UTC expiration date-time" }
+          "expires_at": { "type": "string", "format": "date-time", "example": "2028-12-31T23:59:59Z", "description": "(Optional) UTC expiration date-time" },
+          "idempotency_key": { "type": "string", "example": "8f72a1e4-5b23-4c92-b42d-f9e23b0d1a4c", "description": "(Optional) Unique client token guaranteeing idempotent link creation on retries" }
         }
       },
       "UpdateUrlRequest": {

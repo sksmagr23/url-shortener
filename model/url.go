@@ -66,3 +66,11 @@ type Pagination struct {
 	Total      int64 `json:"total"`
 	TotalPages int   `json:"total_pages"`
 }
+
+type IdempotencyRecord struct {
+	ID        string    `bson:"_id,omitempty" json:"id,omitempty"`
+	Key       string    `bson:"key"           json:"key"`
+	UserID    string    `bson:"user_id"       json:"user_id"`
+	URL       *URL      `bson:"url"           json:"url"`
+	CreatedAt time.Time `bson:"created_at"    json:"created_at"`
+}

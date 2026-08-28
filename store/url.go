@@ -230,3 +230,29 @@ func (s *URLStore) GetVersionByNumber(ctx *gofr.Context, shortCode string, versi
 	}
 	return versions[0], nil
 }
+
+func (s *URLStore) SaveIdempotencyKey(ctx *gofr.Context, record *model.IdempotencyRecord) error {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return errors.New("mongodb datasource is not available")
+	}
+	if record.CreatedAt.IsZero() {
+		record.CreatedAt = time.Now().UTC()
+	}
+	record.ID = primitive.NewObjectID().Hex()
+	_, err := m.InsertOne(ctx, "idempotency_keys", record)
+	return err
+}
+
+func (s *URLStore) FindIdempotencyKey(ctx *gofr.Context, userID, key string) (*model.URL, error) {
+	m := s.getMongo(ctx)
+	if m == nil {
+		return nil, errors.New("mongodb datasource is not available")
+	}
+	var record model.IdempotencyRecord
+	err := m.FindOne(ctx, "idempotency_keys", bson.M{"user_id": userID, "key": key}, &record)
+	if err != nil {
+		return nil, err
+	}
+	return record.URL, nil
+}

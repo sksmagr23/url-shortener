@@ -29,6 +29,7 @@ A high-performance backend service for URL shortening, link lifecycle management
 
 ### 1. URL Shortening & Link Management
 - **Custom Aliases & Auto Generation**: Generate short 6-character random links or specify custom memorable aliases (3–64 characters) with real-time collision checks.
+- **Idempotent Creation**: Guarantee exactly-once link creation on network retries or timeouts, returning the existing short link instead of generating duplicate codes.
 - **Custom Branded Domains**: Support custom short domains (e.g. `me.tech/my-code` or `short.brand.com/my-code`) with domain normalization and HTTP/HTTPS protocol formatting.
 - **Link Expiration**: Set UTC expiration timestamps (`expires_at`) for temporary links. Expired links reject redirects with HTTP 404. Expiry dates can be updated or cleared.
 - **Link Versioning & Rollback**: Track destination URL changes over time for same short codes and restore any previous destination with a single click.
